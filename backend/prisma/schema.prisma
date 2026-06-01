@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  role      String  @default("USER")
+  createdAt DateTime @default(now())
+  orders Order[]
+  cartItems CartItem[]
+
+  tokens    RefreshToken[]
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String
+  price       Float
+  stock       Int
+  orderItems OrderItem[]
+  cartItems CartItem[]
+  createdAt   DateTime @default(now())
+}
+
+model Order {
+  id        Int         @id @default(autoincrement())
+  userId    Int
+  user      User        @relation(fields: [userId], references: [id])
+  total     Float
+  createdAt DateTime    @default(now())
+  items      OrderItem[]
+  status String @default("PENDING")
+  paymentIntentId String?
+}
+
+model OrderItem {
+  id         Int      @id @default(autoincrement())
+
+  orderId    Int
+  order      Order    @relation(fields: [orderId], references: [id])
+
+  productId  Int
+  product    Product  @relation(fields: [productId], references: [id])
+
+  quantity   Int
+  price      Float
+}
+
+model CartItem {
+  id        Int @id @default(autoincrement())
+
+  userId    Int
+  user      User @relation(fields: [userId], references: [id])
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+
+  quantity  Int
+
+  createdAt DateTime @default(now())
+
+  @@unique([id, userId])
+}
