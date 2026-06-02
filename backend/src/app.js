@@ -8,6 +8,7 @@ const orderRoutes = require("./routes/order.routes");
 const paymentRoutes = require("./routes/payment.routes");
 const webhookRoutes = require("./routes/webhook.routes");
 const cartRoutes = require("./routes/cart.routes");
+const dashboardRoutes = require("./routes/dashboard.routes");
 
 const app = express();
 
@@ -29,5 +30,6 @@ app.use("/products", productRoutes);
 app.use("/orders", orderRoutes);
 app.use("/payments", paymentRoutes);
 app.use("/cart", cartRoutes);
+app.use("/dashboard", dashboardRoutes);
 
 module.exports = app;

@@ -120,7 +120,7 @@ const toggleMode = () => {
 
       <input v-model="email" type="email" placeholder="Email" />
 
-      <input v-model="password" type="password" placeholder="Contrasena" />
+      <input v-model="password" type="password" placeholder="Contraseña" />
 
       <button @click="submit" :disabled="loading">
         {{
