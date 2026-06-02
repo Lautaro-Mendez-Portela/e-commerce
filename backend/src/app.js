@@ -7,9 +7,7 @@ const productRoutes = require("./routes/product.routes");
 const orderRoutes = require("./routes/order.routes");
 const paymentRoutes = require("./routes/payment.routes");
 const webhookRoutes = require("./routes/webhook.routes");
-const cartRoutes = require(
-  "./routes/cart.routes"
-);
+const cartRoutes = require("./routes/cart.routes");
 
 const app = express();
 

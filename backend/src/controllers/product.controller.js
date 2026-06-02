@@ -35,3 +35,40 @@ exports.getProducts = async (req, res) => {
 
   }
 };
+
+exports.updateProduct = async (req, res) => {
+  try {
+    const product =
+      await productService.updateProduct(
+        req.params.id,
+        req.body
+      );
+
+    res.json(product);
+
+  } catch (error) {
+
+    res.status(500).json({
+      error: error.message
+    });
+
+  }
+};
+
+exports.deleteProduct = async (req, res) => {
+  try {
+
+    await productService.deleteProduct(
+      req.params.id
+    );
+
+    res.status(204).send();
+
+  } catch (error) {
+
+    res.status(500).json({
+      error: error.message
+    });
+
+  }
+};

@@ -22,6 +22,20 @@ const {
   createProductSchema
 } = require("../validators/product.validator");
 
+router.delete(
+  "/:id",
+  authMiddleware,
+  roleMiddleware("ADMIN"),
+  productController.deleteProduct
+);
+
+router.put(
+  "/:id",
+  authMiddleware,
+  roleMiddleware("ADMIN"),
+  productController.updateProduct
+);
+
 router.post(
   "/",
 

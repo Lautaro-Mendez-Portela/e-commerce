@@ -36,6 +36,7 @@ model Product {
   orderItems OrderItem[]
   cartItems CartItem[]
   createdAt   DateTime @default(now())
+  isActive Boolean @default(true)
 }
 
 model Order {

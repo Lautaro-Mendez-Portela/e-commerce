@@ -220,6 +220,93 @@ button {
 
 }
 
+.admin-list {
+  margin-top: 20px;
+  background: white;
+  border-radius: 18px;
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+.admin-list .admin-header,
+.admin-list .admin-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 22px;
+  min-height: 56px;
+}
+
+.admin-list .admin-header {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.admin-list .admin-row {
+  border-top: 1px solid #e2e8f0;
+}
+
+.admin-list .admin-row span,
+.admin-list .admin-header span {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #334155;
+}
+
+.admin-list .admin-row span:last-child,
+.admin-list .admin-header span:last-child {
+  flex: 0.9;
+}
+
+.admin-list .actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+  flex: 1.2;
+  min-width: 0;
+}
+
+.admin-list .actions button {
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: filter 0.2s ease;
+}
+
+.admin-list .actions button:hover {
+  filter: brightness(0.95);
+}
+
+.edit-btn {
+  background: #2563eb;
+  color: white;
+}
+
+.delete-btn {
+  background: #ef4444;
+  color: white;
+}
+
+.add-product-btn {
+  background: #2563eb;
+  color: white;
+  padding: 12px 18px;
+  border-radius: 12px;
+  transition: opacity 0.2s ease;
+}
+
+.add-product-btn:hover {
+  opacity: 0.95;
+}
+
 .login-page {
   min-height: 100vh;
   display: flex;
@@ -297,3 +384,72 @@ button {
 .logout-btn:hover {
   opacity: .9;
 }
+
+.admin-panel {
+  background: white;
+  padding: 1rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-panel input {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+.admin-panel button {
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.admin-nav {
+  display: flex;
+  gap: 12px;
+
+  margin: 20px 0;
+  padding: 8px;
+
+  background: #ffffff;
+  border-radius: 12px;
+
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.admin-nav button {
+  border: none;
+
+  background: transparent;
+
+  padding: 10px 18px;
+
+  border-radius: 8px;
+
+  cursor: pointer;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  transition: all 0.2s ease;
+}
+
+.admin-nav button.active {
+  background: #2563eb;
+  color: white;
+}
+
+
+.products-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  margin-bottom: 20px;
+}
+
