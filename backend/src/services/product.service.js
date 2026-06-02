@@ -1,4 +1,7 @@
 const prisma = require("../config/prisma");
+const {
+  buildPaginatedResponse
+} = require("../utils/pagination");
 
 exports.createProduct = async (data) => {
   const product = await prisma.product.create({
@@ -8,11 +11,56 @@ exports.createProduct = async (data) => {
   return product;
 };
 
-exports.getProducts = async () => {
-  return await prisma.product.findMany({
-    where: {
-      isActive: true,
-    },
+exports.getProducts = async ({
+  page,
+  limit,
+  skip,
+  name,
+  minPrice,
+  maxPrice,
+}) => {
+  const where = {
+    isActive: true,
+  };
+
+  if (name) {
+    where.name = {
+      contains: name,
+      mode: "insensitive",
+    };
+  }
+
+  if (minPrice || maxPrice) {
+    where.price = {};
+
+    if (minPrice) {
+      where.price.gte = Number(minPrice);
+    }
+
+    if (maxPrice) {
+      where.price.lte = Number(maxPrice);
+    }
+  }
+
+  const [products, total] = await prisma.$transaction([
+    prisma.product.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: {
+        id: "asc",
+      },
+    }),
+    prisma.product.count({
+      where,
+    }),
+  ]);
+
+  return buildPaginatedResponse({
+    data: products,
+    total,
+    page,
+    limit,
   });
 };
 

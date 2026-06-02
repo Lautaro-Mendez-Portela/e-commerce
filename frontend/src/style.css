@@ -31,6 +31,29 @@ button {
 
   position: sticky;
   top: 0;
+  z-index: 10;
+}
+
+.brand-btn {
+  background: transparent;
+  color: white;
+  font-size: 28px;
+  font-weight: 700;
+  padding: 0;
+}
+
+.nav-btn {
+  background: transparent;
+  color: #d1d5db;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.nav-btn.active,
+.nav-btn:hover {
+  background: #2563eb;
+  color: white;
 }
 
 .cart-badge {
@@ -368,6 +391,7 @@ button {
 .navbar-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 1rem;
 }
 
@@ -444,6 +468,10 @@ button {
   color: white;
 }
 
+.admin-section {
+  padding: 30px;
+}
+
 
 .products-header {
   display: flex;
@@ -453,3 +481,106 @@ button {
   margin-bottom: 20px;
 }
 
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.pagination-controls button {
+  background: #2563eb;
+  color: white;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.pagination-controls button:disabled {
+  background: #cbd5e1;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.pagination-controls span {
+  color: #334155;
+  font-weight: 600;
+}
+
+.login-card .link-btn {
+  background: transparent;
+  color: #2563eb;
+  padding: 4px;
+}
+
+.admin-actions,
+.filters-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.admin-actions input,
+.admin-actions select,
+.filters-bar input,
+.filters-bar select {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  min-width: 170px;
+}
+
+.filter-btn,
+.clear-btn {
+  color: white;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.filter-btn {
+  background: #2563eb;
+}
+
+.clear-btn {
+  background: #64748b;
+}
+
+.profile-section {
+  padding: 30px;
+}
+
+.profile-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 340px) 1fr;
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.profile-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+.profile-card p {
+  margin-top: 10px;
+}
+
+.profile-card h4 {
+  margin-top: 18px;
+}
+
+.admin-user-profile {
+  margin-top: 24px;
+}
+
+@media (max-width: 900px) {
+  .profile-layout {
+    grid-template-columns: 1fr;
+  }
+}

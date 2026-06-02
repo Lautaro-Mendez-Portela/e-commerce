@@ -1,4 +1,7 @@
 const productService = require("../services/product.service");
+const {
+  getPaginationParams
+} = require("../utils/pagination");
 
 exports.createProduct = async (req, res) => {
 
@@ -22,8 +25,14 @@ exports.createProduct = async (req, res) => {
 exports.getProducts = async (req, res) => {
 
   try {
+    const pagination = getPaginationParams(req.query);
 
-    const products = await productService.getProducts();
+    const products = await productService.getProducts({
+      ...pagination,
+      name: req.query.name,
+      minPrice: req.query.minPrice,
+      maxPrice: req.query.maxPrice,
+    });
 
     res.json(products);
 

@@ -1,11 +1,25 @@
 <script setup>
 import { onMounted, ref } from "vue";
+import PaginationControls from "./PaginationControls.vue";
 
 const API_URL = "http://localhost:3000";
 
 const products = ref([]);
 const editingProductId = ref(null);
 const showForm = ref(false);
+const filters = ref({
+  name: "",
+  minPrice: "",
+  maxPrice: "",
+});
+const pagination = ref({
+  page: 1,
+  limit: 10,
+  total: 0,
+  totalPages: 1,
+  hasNextPage: false,
+  hasPreviousPage: false,
+});
 
 const productForm = ref({
   name: "",
@@ -16,15 +30,51 @@ const productForm = ref({
 
 const getToken = () => `Bearer ${localStorage.getItem("token")}`;
 
-const getProducts = async () => {
+const getProducts = async (page = pagination.value.page) => {
   try {
-    const response = await fetch(`${API_URL}/products`);
+    const params = new URLSearchParams({
+      page,
+      limit: pagination.value.limit,
+    });
+
+    if (filters.value.name) {
+      params.append("name", filters.value.name);
+    }
+
+    if (filters.value.minPrice) {
+      params.append("minPrice", filters.value.minPrice);
+    }
+
+    if (filters.value.maxPrice) {
+      params.append("maxPrice", filters.value.maxPrice);
+    }
+
+    const response = await fetch(`${API_URL}/products?${params.toString()}`);
     const data = await response.json();
 
-    products.value = data;
+    products.value = data.data;
+    pagination.value = data.pagination;
   } catch (error) {
     console.error("ERROR PRODUCTS:", error);
   }
+};
+
+const changePage = async (page) => {
+  await getProducts(page);
+};
+
+const applyFilters = async () => {
+  await getProducts(1);
+};
+
+const clearFilters = async () => {
+  filters.value = {
+    name: "",
+    minPrice: "",
+    maxPrice: "",
+  };
+
+  await getProducts(1);
 };
 
 const resetForm = () => {
@@ -71,7 +121,7 @@ const saveProduct = async () => {
     resetForm();
     showForm.value = false;
 
-    await getProducts();
+    await getProducts(isEditing ? pagination.value.page : 1);
 
     alert(isEditing ? "Producto actualizado" : "Producto creado");
   } catch (error) {
@@ -109,7 +159,12 @@ const deleteProduct = async (id) => {
       },
     });
 
-    await getProducts();
+    const nextPage =
+      products.value.length === 1 && pagination.value.page > 1
+        ? pagination.value.page - 1
+        : pagination.value.page;
+
+    await getProducts(nextPage);
   } catch (error) {
     console.error(error);
   }
@@ -127,6 +182,32 @@ onMounted(() => {
 
       <button class="add-product-btn" @click="openCreateForm">
         + Agregar Producto
+      </button>
+    </div>
+
+    <div class="filters-bar">
+      <input v-model="filters.name" placeholder="Buscar por nombre" />
+
+      <input
+        v-model="filters.minPrice"
+        type="number"
+        min="0"
+        placeholder="Precio minimo"
+      />
+
+      <input
+        v-model="filters.maxPrice"
+        type="number"
+        min="0"
+        placeholder="Precio maximo"
+      />
+
+      <button class="filter-btn" @click="applyFilters">
+        Filtrar
+      </button>
+
+      <button class="clear-btn" @click="clearFilters">
+        Limpiar
       </button>
     </div>
 
@@ -162,7 +243,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <p>Total productos: {{ products.length }}</p>
+    <p>Total productos: {{ pagination.total }}</p>
 
     <div class="admin-list">
       <div class="admin-header">
@@ -194,5 +275,10 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <PaginationControls
+      :pagination="pagination"
+      @change-page="changePage"
+    />
   </section>
 </template>

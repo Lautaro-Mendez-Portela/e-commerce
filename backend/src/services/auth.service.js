@@ -2,7 +2,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const prisma = require("../config/prisma");
 
-exports.register = async ({ email, password }) => {
+exports.register = async ({ firstName, lastName, email, password }) => {
   const existingUser = await prisma.user.findUnique({
     where: { email }
   });
@@ -15,6 +15,8 @@ exports.register = async ({ email, password }) => {
 
   const user = await prisma.user.create({
     data: {
+      firstName,
+      lastName,
       email,
       password: hashedPassword
     }
@@ -22,6 +24,8 @@ exports.register = async ({ email, password }) => {
 
   return {
     id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
     email: user.email
   };
 };
@@ -33,6 +37,10 @@ exports.login = async ({ email, password }) => {
 
   if (!user) {
     throw new Error("Usuario no encontrado");
+  }
+
+  if (!user.isActive) {
+    throw new Error("Usuario deshabilitado");
   }
 
   const validPassword = await bcrypt.compare(
@@ -98,6 +106,10 @@ exports.refresh = async (refreshToken) => {
         id: decoded.userId
       }
     });
+
+    if (!user || !user.isActive) {
+      throw new Error("Usuario deshabilitado");
+    }
 
     const accessToken = jwt.sign(
       {

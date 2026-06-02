@@ -3,13 +3,14 @@ import { ref } from "vue";
 
 import ProductsView from "./ProductsView.vue";
 import UsersView from "./UsersView.vue";
+import OrdersView from "./OrdersView.vue";
 
 const currentTab = ref("products");
 </script>
 
 <template>
   <section class="admin-section">
-    <h2>Panel de Administración</h2>
+    <h2>Panel de administracion</h2>
 
     <nav class="admin-nav">
       <button
@@ -25,10 +26,19 @@ const currentTab = ref("products");
       >
         Usuarios
       </button>
+
+      <button
+        :class="{ active: currentTab === 'orders' }"
+        @click="currentTab = 'orders'"
+      >
+        Ordenes
+      </button>
     </nav>
 
     <ProductsView v-if="currentTab === 'products'" />
 
     <UsersView v-if="currentTab === 'users'" />
+
+    <OrdersView v-if="currentTab === 'orders'" />
   </section>
 </template>
