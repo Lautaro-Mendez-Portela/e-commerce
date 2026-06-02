@@ -10,6 +10,11 @@ exports.createProductSchema = z.object({
     .string()
     .min(5),
 
+  imageUrl: z
+    .string()
+    .optional()
+    .or(z.literal("")),
+
   price: z
     .number()
     .positive(),

@@ -262,7 +262,16 @@ onMounted(async () => {
             :key="product.id"
             class="product-card"
           >
-            <div class="product-image">Caja</div>
+            <img
+              v-if="product.imageUrl"
+              :src="product.imageUrl"
+              :alt="product.name"
+              class="product-image"
+            />
+
+            <div v-else class="product-image">
+              Caja
+            </div>
 
             <h3>
               {{ product.name }}

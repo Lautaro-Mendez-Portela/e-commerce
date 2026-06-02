@@ -24,11 +24,36 @@ const pagination = ref({
 const productForm = ref({
   name: "",
   description: "",
+  imageUrl: "",
   price: 0,
   stock: 0,
 });
 
 const getToken = () => `Bearer ${localStorage.getItem("token")}`;
+
+const handleImageUpload = (event) => {
+  const file = event.target.files?.[0];
+
+  if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+    alert("Selecciona un archivo de imagen");
+    event.target.value = "";
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    productForm.value.imageUrl = reader.result;
+  };
+
+  reader.readAsDataURL(file);
+};
+
+const removeImage = () => {
+  productForm.value.imageUrl = "";
+};
 
 const getProducts = async (page = pagination.value.page) => {
   try {
@@ -81,6 +106,7 @@ const resetForm = () => {
   productForm.value = {
     name: "",
     description: "",
+    imageUrl: "",
     price: 0,
     stock: 0,
   };
@@ -136,6 +162,7 @@ const startEdit = (product) => {
   productForm.value = {
     name: product.name,
     description: product.description,
+    imageUrl: product.imageUrl || "",
     price: product.price,
     stock: product.stock,
   };
@@ -147,7 +174,7 @@ const cancelEdit = () => {
 };
 
 const deleteProduct = async (id) => {
-  const confirmed = confirm("¿Eliminar este producto?");
+  const confirmed = confirm("Eliminar este producto?");
 
   if (!confirmed) return;
 
@@ -216,21 +243,57 @@ onMounted(() => {
         {{ editingProductId ? "Editar Producto" : "Crear Producto" }}
       </h3>
 
-      <input v-model="productForm.name" placeholder="Nombre" />
+      <label class="form-field">
+        <span>Nombre</span>
+        <input v-model="productForm.name" placeholder="Nombre del producto" />
+      </label>
 
-      <input v-model="productForm.description" placeholder="Descripción" />
+      <label class="form-field">
+        <span>Descripcion</span>
+        <input
+          v-model="productForm.description"
+          placeholder="Descripcion del producto"
+        />
+      </label>
 
-      <input
-        v-model.number="productForm.price"
-        type="number"
-        placeholder="Precio"
-      />
+      <label class="form-field">
+        <span>Foto</span>
+        <input
+          type="file"
+          accept="image/*"
+          @change="handleImageUpload"
+        />
+      </label>
 
-      <input
-        v-model.number="productForm.stock"
-        type="number"
-        placeholder="Stock"
-      />
+      <div v-if="productForm.imageUrl" class="image-preview-row">
+        <img
+          :src="productForm.imageUrl"
+          class="product-form-preview"
+          alt="Vista previa del producto"
+        />
+
+        <button class="clear-btn" @click="removeImage">
+          Quitar foto
+        </button>
+      </div>
+
+      <label class="form-field">
+        <span>Precio</span>
+        <input
+          v-model.number="productForm.price"
+          type="number"
+          placeholder="Precio"
+        />
+      </label>
+
+      <label class="form-field">
+        <span>Stock</span>
+        <input
+          v-model.number="productForm.stock"
+          type="number"
+          placeholder="Stock"
+        />
+      </label>
 
       <div class="form-actions">
         <button class="save-btn" @click="saveProduct">
