@@ -9,6 +9,7 @@ const paymentRoutes = require("./routes/payment.routes");
 const webhookRoutes = require("./routes/webhook.routes");
 const cartRoutes = require("./routes/cart.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
+const favoriteRoutes = require("./routes/favorite.routes");
 
 const app = express();
 
@@ -31,5 +32,6 @@ app.use("/orders", orderRoutes);
 app.use("/payments", paymentRoutes);
 app.use("/cart", cartRoutes);
 app.use("/dashboard", dashboardRoutes);
+app.use("/favorites", favoriteRoutes);
 
 module.exports = app;

@@ -20,6 +20,7 @@ const productPagination = ref({
   hasPreviousPage: false,
 });
 const cart = ref([]);
+const favorites = ref([]);
 const currentView = ref("store");
 const isLoggedIn = ref(!!localStorage.getItem("token"));
 const isAdmin = ref(false);
@@ -77,6 +78,61 @@ const getCart = async () => {
 
     cart.value = [];
   }
+};
+
+const getFavorites = async () => {
+  try {
+    const response = await fetch(`${API_URL}/favorites`, {
+      headers: {
+        Authorization: getToken(),
+      },
+    });
+
+    if (!response.ok) {
+      favorites.value = [];
+
+      return;
+    }
+
+    favorites.value = await response.json();
+  } catch (error) {
+    console.error("ERROR FAVORITES:", error);
+    favorites.value = [];
+  }
+};
+
+const isFavorite = (productId) => {
+  return favorites.value.some((favorite) => favorite.productId === productId);
+};
+
+const toggleFavorite = async (productId) => {
+  const favorite = isFavorite(productId);
+
+  const response = await fetch(
+    favorite
+      ? `${API_URL}/favorites/${productId}`
+      : `${API_URL}/favorites`,
+    {
+      method: favorite ? "DELETE" : "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: getToken(),
+      },
+      body: favorite
+        ? undefined
+        : JSON.stringify({
+            productId,
+          }),
+    }
+  );
+
+  if (!response.ok) {
+    const data = await response.json();
+    alert(data.error || "Error al actualizar favoritos");
+    return;
+  }
+
+  await getFavorites();
 };
 
 const addToCart = async (productId) => {
@@ -171,6 +227,11 @@ const showProfile = () => {
   currentView.value = "profile";
 };
 
+const showFavorites = async () => {
+  currentView.value = "favorites";
+  await getFavorites();
+};
+
 const handleLogin = async () => {
   isLoggedIn.value = true;
 
@@ -179,6 +240,7 @@ const handleLogin = async () => {
 
   await getProducts();
   await getCart();
+  await getFavorites();
 };
 
 const logout = () => {
@@ -199,6 +261,7 @@ onMounted(async () => {
     loadUserRole();
     await getProducts();
     await getCart();
+    await getFavorites();
   }
 });
 </script>
@@ -238,6 +301,14 @@ onMounted(async () => {
           Ver perfil
         </button>
 
+        <button
+          :class="{ active: currentView === 'favorites' }"
+          class="nav-btn"
+          @click="showFavorites"
+        >
+          Favoritos {{ favorites.length }}
+        </button>
+
         <div class="cart-badge">Carrito {{ cart.length }}</div>
 
         <button class="logout-btn" @click="logout">
@@ -272,6 +343,15 @@ onMounted(async () => {
             <div v-else class="product-image">
               Caja
             </div>
+
+            <button
+              :class="{ active: isFavorite(product.id) }"
+              class="favorite-btn"
+              :aria-label="isFavorite(product.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'"
+              @click="toggleFavorite(product.id)"
+            >
+              {{ isFavorite(product.id) ? "♥" : "♡" }}
+            </button>
 
             <h3>
               {{ product.name }}
@@ -343,6 +423,54 @@ onMounted(async () => {
           </button>
         </div>
       </aside>
+    </main>
+
+    <main v-if="currentView === 'favorites'" class="favorites-section">
+      <h2 class="section-title">Favoritos</h2>
+
+      <p v-if="favorites.length === 0" class="empty-cart">
+        Todavia no agregaste productos a favoritos
+      </p>
+
+      <div v-else class="products-grid">
+        <div
+          v-for="favorite in favorites"
+          :key="favorite.id"
+          class="product-card"
+        >
+          <img
+            v-if="favorite.product.imageUrl"
+            :src="favorite.product.imageUrl"
+            :alt="favorite.product.name"
+            class="product-image"
+          />
+
+          <div v-else class="product-image">
+            Caja
+          </div>
+
+          <button
+            class="favorite-btn active"
+            aria-label="Quitar de favoritos"
+            @click="toggleFavorite(favorite.productId)"
+          >
+            ♥
+          </button>
+
+          <h3>{{ favorite.product.name }}</h3>
+
+          <p class="price">$ {{ favorite.product.price }}</p>
+
+          <p class="stock">Stock: {{ favorite.product.stock }}</p>
+
+          <button
+            class="primary-btn"
+            @click="addToCart(favorite.productId)"
+          >
+            Agregar al carrito
+          </button>
+        </div>
+      </div>
     </main>
   </div>
 </template>
