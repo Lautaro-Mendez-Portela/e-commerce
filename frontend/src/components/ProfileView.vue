@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, ref } from "vue";
 import PaginationControls from "./admin/PaginationControls.vue";
-import { API_URL } from "../config";
+import { apiClient } from "../services/apiClient";
 
 const profile = ref(null);
 const loading = ref(false);
@@ -15,13 +15,11 @@ const ordersPagination = ref({
   hasPreviousPage: false,
 });
 
-const getToken = () => `Bearer ${localStorage.getItem("token")}`;
-
 const getOrderTotal = (order) => {
   if (!order.items) return 0;
 
   return order.items.reduce((total, item) => {
-    return total + item.quantity * item.price;
+    return total + item.quantity * Number(item.price);
   }, 0);
 };
 
@@ -30,20 +28,12 @@ const getProfile = async (page = ordersPagination.value.page) => {
     loading.value = true;
     errorMessage.value = "";
 
-    const response = await fetch(
-      `${API_URL}/users/me?page=${page}&limit=${ordersPagination.value.limit}`,
-      {
-      headers: {
-        Authorization: getToken(),
+    const data = await apiClient.get("/users/me", {
+      query: {
+        page,
+        limit: ordersPagination.value.limit,
       },
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || "Error al obtener perfil");
-    }
+    });
 
     profile.value = data;
     ordersPagination.value = data.ordersPagination;

@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, ref, watch } from "vue";
 import PaginationControls from "./PaginationControls.vue";
-import { API_URL } from "../../config";
+import { apiClient } from "../../services/apiClient";
 
 const orders = ref([]);
 const loading = ref(false);
@@ -18,46 +18,24 @@ const pagination = ref({
   hasPreviousPage: false,
 });
 
-const getToken = () => {
-  const token = localStorage.getItem("token");
-  return `Bearer ${token}`;
-};
-
 const getOrders = async (page = pagination.value.page) => {
   try {
     loading.value = true;
     errorMessage.value = "";
 
-    const params = new URLSearchParams({
-      page,
-      limit: pagination.value.limit,
-      status: statusFilter.value,
-    });
-
-    if (dateFrom.value) {
-      params.append("dateFrom", dateFrom.value);
-    }
-
-    if (dateTo.value) {
-      params.append("dateTo", dateTo.value);
-    }
-
-    const response = await fetch(`${API_URL}/orders?${params.toString()}`, {
-      headers: {
-        Authorization: getToken(),
+    const data = await apiClient.get("/orders", {
+      query: {
+        page,
+        limit: pagination.value.limit,
+        status: statusFilter.value,
+        dateFrom: dateFrom.value,
+        dateTo: dateTo.value,
       },
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || "Error al obtener ordenes");
-    }
 
     orders.value = data.data;
     pagination.value = data.pagination;
   } catch (error) {
-    console.error("ERROR ORDERS:", error);
     errorMessage.value = error.message;
   } finally {
     loading.value = false;
@@ -88,7 +66,7 @@ const getOrderTotal = (order) => {
   if (!order.items) return 0;
 
   return order.items.reduce((total, item) => {
-    return total + item.quantity * item.price;
+    return total + item.quantity * Number(item.price);
   }, 0);
 };
 

@@ -1,8 +1,19 @@
 <script setup>
-import { ref } from "vue";
-import { API_URL } from "../config";
+import { ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
-const emit = defineEmits(["login-success"]);
+import { useAuthStore } from "../stores/authStore";
+
+const props = defineProps({
+  initialMode: {
+    type: String,
+    default: "login",
+  },
+});
+
+const route = useRoute();
+const router = useRouter();
+const authStore = useAuthStore();
 
 const firstName = ref("");
 const lastName = ref("");
@@ -10,10 +21,21 @@ const email = ref("");
 const password = ref("");
 const error = ref("");
 const loading = ref(false);
-const isRegistering = ref(false);
+const isRegistering = ref(props.initialMode === "register");
 
 const resetMessage = () => {
   error.value = "";
+};
+
+const redirectAfterAuth = () => {
+  const redirectTo =
+    typeof route.query.redirect === "string"
+      ? route.query.redirect
+      : authStore.isAdmin
+        ? "/admin"
+        : "/products";
+
+  router.replace(redirectTo);
 };
 
 const login = async () => {
@@ -21,27 +43,12 @@ const login = async () => {
   loading.value = true;
 
   try {
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: email.value,
-        password: password.value,
-      }),
+    await authStore.login({
+      email: email.value,
+      password: password.value,
     });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || "Credenciales invalidas");
-    }
-
-    localStorage.setItem("token", data.accessToken);
-    localStorage.setItem("refreshToken", data.refreshToken);
-
-    emit("login-success");
+    redirectAfterAuth();
   } catch (err) {
     error.value = err.message;
   } finally {
@@ -54,26 +61,14 @@ const register = async () => {
   loading.value = true;
 
   try {
-    const response = await fetch(`${API_URL}/auth/register`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        firstName: firstName.value,
-        lastName: lastName.value,
-        email: email.value,
-        password: password.value,
-      }),
+    await authStore.register({
+      firstName: firstName.value,
+      lastName: lastName.value,
+      email: email.value,
+      password: password.value,
     });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || "Error al registrar usuario");
-    }
-
-    await login();
+    redirectAfterAuth();
   } catch (err) {
     error.value = err.message;
   } finally {
@@ -91,9 +86,21 @@ const submit = () => {
 };
 
 const toggleMode = () => {
-  isRegistering.value = !isRegistering.value;
   resetMessage();
+
+  router.push({
+    name: isRegistering.value ? "login" : "register",
+    query: route.query,
+  });
 };
+
+watch(
+  () => props.initialMode,
+  (mode) => {
+    isRegistering.value = mode === "register";
+    resetMessage();
+  }
+);
 </script>
 
 <template>

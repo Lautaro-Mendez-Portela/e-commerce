@@ -1,10 +1,13 @@
 const { Prisma } = require("@prisma/client");
+const stripe = require("../config/stripe");
 const prisma = require("../config/prisma");
 const AppError = require("../utils/app-error");
 const {
   ORDER_STATUS,
   assertOrderTransition
 } = require("../utils/order-status");
+
+const REFUNDABLE_PAYMENT_STATUSES = ["paid", "succeeded"];
 
 const getPaymentIntentId = (value) => {
   if (!value) {
@@ -49,6 +52,15 @@ const getProductQuantities = (items) => {
   }, new Map());
 };
 
+const lockOrder = async (tx, orderId) => {
+  await tx.$queryRaw`
+    SELECT "id"
+    FROM "Order"
+    WHERE "id" = ${orderId}
+    FOR UPDATE
+  `;
+};
+
 const lockProducts = async (tx, productIds) => {
   if (productIds.length === 0) {
     return [];
@@ -62,25 +74,12 @@ const lockProducts = async (tx, productIds) => {
   `;
 };
 
-const markOrderFailedForStock = async (
-  tx,
-  order,
-  paymentIntentId,
-  stripePaymentStatus,
-  stripeCheckoutSessionId
-) => {
-  assertOrderTransition(order.status, ORDER_STATUS.FAILED, "STRIPE");
-
-  await tx.order.update({
-    where: {
-      id: order.id,
-    },
+const createStripeEvent = async (tx, event, orderId) => {
+  return tx.stripeEvent.create({
     data: {
-      status: ORDER_STATUS.FAILED,
-      paymentIntentId: paymentIntentId || order.paymentIntentId,
-      stripePaymentStatus,
-      stripeCheckoutSessionId:
-        stripeCheckoutSessionId || order.stripeCheckoutSessionId,
+      stripeEventId: event.id,
+      type: event.type,
+      orderId,
     },
   });
 };
@@ -166,23 +165,14 @@ const removePurchasedItemsFromCart = async (tx, order) => {
   }
 };
 
-const completeOrderPayment = async (
-  tx,
-  {
-    orderId,
-    paymentIntentId,
-    stripePaymentStatus,
-    stripeCheckoutSessionId,
-  }
-) => {
+const getOrderForPayment = async (tx, orderId) => {
   if (!orderId) {
-    return {
-      orderId: null,
-      ignored: true,
-    };
+    return null;
   }
 
-  const order = await tx.order.findUnique({
+  await lockOrder(tx, orderId);
+
+  return tx.order.findUnique({
     where: {
       id: orderId,
     },
@@ -190,159 +180,345 @@ const completeOrderPayment = async (
       items: true,
     },
   });
-
-  if (!order) {
-    throw new AppError(404, "ORDER_NOT_FOUND", "Orden no encontrada");
-  }
-
-  if (order.status === ORDER_STATUS.PAID) {
-    return {
-      orderId: order.id,
-      alreadyPaid: true,
-    };
-  }
-
-  if (order.status !== ORDER_STATUS.PENDING) {
-    return {
-      orderId: order.id,
-      ignored: true,
-      status: order.status,
-    };
-  }
-
-  if (stripePaymentStatus && !["paid", "succeeded"].includes(stripePaymentStatus)) {
-    return {
-      orderId: order.id,
-      ignored: true,
-      stripePaymentStatus,
-    };
-  }
-
-  if (order.items.length === 0) {
-    await markOrderFailedForStock(
-      tx,
-      order,
-      paymentIntentId,
-      stripePaymentStatus || "failed",
-      stripeCheckoutSessionId
-    );
-
-    return {
-      orderId: order.id,
-      failed: true,
-    };
-  }
-
-  const hasStock = await validateAndReserveStock(tx, order);
-
-  if (!hasStock) {
-    await markOrderFailedForStock(
-      tx,
-      order,
-      paymentIntentId,
-      stripePaymentStatus || "failed",
-      stripeCheckoutSessionId
-    );
-
-    return {
-      orderId: order.id,
-      failed: true,
-    };
-  }
-
-  assertOrderTransition(order.status, ORDER_STATUS.PAID, "STRIPE");
-
-  await tx.order.update({
-    where: {
-      id: order.id,
-    },
-    data: {
-      status: ORDER_STATUS.PAID,
-      paymentIntentId: paymentIntentId || order.paymentIntentId,
-      stripeCheckoutSessionId:
-        stripeCheckoutSessionId || order.stripeCheckoutSessionId,
-      stripePaymentStatus: stripePaymentStatus || "paid",
-      paidAt: new Date(),
-    },
-  });
-
-  await removePurchasedItemsFromCart(tx, order);
-
-  return {
-    orderId: order.id,
-    paid: true,
-  };
 };
 
-const updatePendingOrderFromStripe = async (
+const markOrderFailedForRefund = async (
   tx,
   {
-    orderId,
-    nextStatus,
-    paymentIntentId,
+    order,
+    stripePaymentIntentId,
     stripePaymentStatus,
     stripeCheckoutSessionId,
   }
 ) => {
-  if (!orderId) {
-    return {
-      orderId: null,
-      ignored: true,
-    };
-  }
-
-  const order = await tx.order.findUnique({
-    where: {
-      id: orderId,
-    },
-  });
-
-  if (!order) {
-    throw new AppError(404, "ORDER_NOT_FOUND", "Orden no encontrada");
-  }
-
-  if (order.status !== ORDER_STATUS.PENDING) {
-    return {
-      orderId: order.id,
-      ignored: true,
-      status: order.status,
-    };
-  }
-
-  assertOrderTransition(order.status, nextStatus, "STRIPE");
+  assertOrderTransition(order.status, ORDER_STATUS.FAILED, "STRIPE");
 
   await tx.order.update({
     where: {
       id: order.id,
     },
     data: {
-      status: nextStatus,
-      paymentIntentId: paymentIntentId || order.paymentIntentId,
+      status: ORDER_STATUS.FAILED,
+      stripePaymentIntentId:
+        stripePaymentIntentId || order.stripePaymentIntentId,
       stripePaymentStatus,
       stripeCheckoutSessionId:
         stripeCheckoutSessionId || order.stripeCheckoutSessionId,
-      cancelledAt: nextStatus === ORDER_STATUS.CANCELLED
-        ? new Date()
-        : order.cancelledAt,
     },
   });
-
-  return {
-    orderId: order.id,
-    status: nextStatus,
-  };
 };
 
-const processStripeEvent = async (tx, event) => {
+const attemptCompleteOrderPayment = async (
+  event,
+  {
+    orderId,
+    stripePaymentIntentId,
+    stripePaymentStatus,
+    stripeCheckoutSessionId,
+  }
+) => {
+  return prisma.$transaction(async (tx) => {
+    const order = await getOrderForPayment(tx, orderId);
+
+    if (!order) {
+      throw new AppError(404, "ORDER_NOT_FOUND", "Orden no encontrada");
+    }
+
+    if (order.status === ORDER_STATUS.PAID) {
+      await createStripeEvent(tx, event, order.id);
+
+      return {
+        orderId: order.id,
+        alreadyPaid: true,
+        processed: true,
+      };
+    }
+
+    if (order.status === ORDER_STATUS.REFUNDED || order.stripeRefundId) {
+      await createStripeEvent(tx, event, order.id);
+
+      return {
+        orderId: order.id,
+        alreadyRefunded: true,
+        processed: true,
+      };
+    }
+
+    if (
+      order.status === ORDER_STATUS.FAILED &&
+      stripePaymentIntentId &&
+      !order.stripeRefundId
+    ) {
+      return {
+        orderId: order.id,
+        stripePaymentIntentId,
+        stripePaymentStatus,
+        refundRequired: true,
+        processed: false,
+      };
+    }
+
+    if (order.status !== ORDER_STATUS.PENDING) {
+      await createStripeEvent(tx, event, order.id);
+
+      return {
+        orderId: order.id,
+        ignored: true,
+        status: order.status,
+        processed: true,
+      };
+    }
+
+    if (
+      stripePaymentStatus &&
+      !REFUNDABLE_PAYMENT_STATUSES.includes(stripePaymentStatus)
+    ) {
+      await createStripeEvent(tx, event, order.id);
+
+      return {
+        orderId: order.id,
+        ignored: true,
+        stripePaymentStatus,
+        processed: true,
+      };
+    }
+
+    if (order.items.length === 0) {
+      await markOrderFailedForRefund(tx, {
+        order,
+        stripePaymentIntentId,
+        stripePaymentStatus: stripePaymentStatus || "paid",
+        stripeCheckoutSessionId,
+      });
+
+      return {
+        orderId: order.id,
+        stripePaymentIntentId,
+        stripePaymentStatus,
+        refundRequired: Boolean(stripePaymentIntentId),
+        refundUnavailable: !stripePaymentIntentId,
+        processed: false,
+      };
+    }
+
+    const hasStock = await validateAndReserveStock(tx, order);
+
+    if (!hasStock) {
+      await markOrderFailedForRefund(tx, {
+        order,
+        stripePaymentIntentId,
+        stripePaymentStatus: stripePaymentStatus || "paid",
+        stripeCheckoutSessionId,
+      });
+
+      return {
+        orderId: order.id,
+        stripePaymentIntentId,
+        stripePaymentStatus,
+        refundRequired: Boolean(stripePaymentIntentId),
+        refundUnavailable: !stripePaymentIntentId,
+        processed: false,
+      };
+    }
+
+    assertOrderTransition(order.status, ORDER_STATUS.PAID, "STRIPE");
+
+    await tx.order.update({
+      where: {
+        id: order.id,
+      },
+      data: {
+        status: ORDER_STATUS.PAID,
+        stripePaymentIntentId:
+          stripePaymentIntentId || order.stripePaymentIntentId,
+        stripeCheckoutSessionId:
+          stripeCheckoutSessionId || order.stripeCheckoutSessionId,
+        stripePaymentStatus: stripePaymentStatus || "paid",
+        paidAt: new Date(),
+      },
+    });
+
+    await removePurchasedItemsFromCart(tx, order);
+    await createStripeEvent(tx, event, order.id);
+
+    return {
+      orderId: order.id,
+      paid: true,
+      processed: true,
+    };
+  });
+};
+
+const updatePendingOrderFromStripe = async (
+  event,
+  {
+    orderId,
+    nextStatus,
+    stripePaymentIntentId,
+    stripePaymentStatus,
+    stripeCheckoutSessionId,
+  }
+) => {
+  return prisma.$transaction(async (tx) => {
+    const order = await getOrderForPayment(tx, orderId);
+
+    if (!order) {
+      throw new AppError(404, "ORDER_NOT_FOUND", "Orden no encontrada");
+    }
+
+    if (order.status !== ORDER_STATUS.PENDING) {
+      await createStripeEvent(tx, event, order.id);
+
+      return {
+        orderId: order.id,
+        ignored: true,
+        status: order.status,
+        processed: true,
+      };
+    }
+
+    assertOrderTransition(order.status, nextStatus, "STRIPE");
+
+    await tx.order.update({
+      where: {
+        id: order.id,
+      },
+      data: {
+        status: nextStatus,
+        stripePaymentIntentId:
+          stripePaymentIntentId || order.stripePaymentIntentId,
+        stripePaymentStatus,
+        stripeCheckoutSessionId:
+          stripeCheckoutSessionId || order.stripeCheckoutSessionId,
+        cancelledAt: nextStatus === ORDER_STATUS.CANCELLED
+          ? new Date()
+          : order.cancelledAt,
+      },
+    });
+
+    await createStripeEvent(tx, event, order.id);
+
+    return {
+      orderId: order.id,
+      status: nextStatus,
+      processed: true,
+    };
+  });
+};
+
+const createRefund = async (orderId, stripePaymentIntentId) => {
+  const idempotencyKey =
+    `refund_order_${orderId}_payment_${stripePaymentIntentId}`;
+
+  return stripe.refunds.create(
+    {
+      payment_intent: stripePaymentIntentId,
+      reason: "requested_by_customer",
+      metadata: {
+        orderId: String(orderId),
+        reason: "insufficient_stock",
+      },
+    },
+    {
+      idempotencyKey,
+    }
+  );
+};
+
+const markOrderRefunded = async (
+  event,
+  {
+    orderId,
+    stripePaymentIntentId,
+    stripePaymentStatus,
+    refund,
+  }
+) => {
+  return prisma.$transaction(async (tx) => {
+    const order = await getOrderForPayment(tx, orderId);
+
+    if (!order) {
+      throw new AppError(404, "ORDER_NOT_FOUND", "Orden no encontrada");
+    }
+
+    if (order.status === ORDER_STATUS.REFUNDED || order.stripeRefundId) {
+      await createStripeEvent(tx, event, order.id);
+
+      return {
+        orderId: order.id,
+        alreadyRefunded: true,
+        processed: true,
+      };
+    }
+
+    assertOrderTransition(order.status, ORDER_STATUS.REFUNDED, "STRIPE");
+
+    await tx.order.update({
+      where: {
+        id: order.id,
+      },
+      data: {
+        status: ORDER_STATUS.REFUNDED,
+        stripePaymentIntentId:
+          stripePaymentIntentId || order.stripePaymentIntentId,
+        stripePaymentStatus: stripePaymentStatus || "refunded",
+        stripeRefundId: refund.id,
+        stripeRefundStatus: refund.status,
+        refundedAt: new Date(),
+      },
+    });
+
+    await createStripeEvent(tx, event, order.id);
+
+    return {
+      orderId: order.id,
+      refunded: true,
+      stripeRefundId: refund.id,
+      processed: true,
+    };
+  });
+};
+
+const processSuccessfulPaymentEvent = async (
+  event,
+  {
+    orderId,
+    stripePaymentIntentId,
+    stripePaymentStatus,
+    stripeCheckoutSessionId,
+  }
+) => {
+  const result = await attemptCompleteOrderPayment(event, {
+    orderId,
+    stripePaymentIntentId,
+    stripePaymentStatus,
+    stripeCheckoutSessionId,
+  });
+
+  if (!result.refundRequired) {
+    return result;
+  }
+
+  const refund = await createRefund(orderId, result.stripePaymentIntentId);
+
+  return markOrderRefunded(event, {
+    orderId,
+    stripePaymentIntentId: result.stripePaymentIntentId,
+    stripePaymentStatus,
+    refund,
+  });
+};
+
+const processStripeEvent = async (event) => {
   if (
     event.type === "checkout.session.completed" ||
     event.type === "checkout.session.async_payment_succeeded"
   ) {
     const session = event.data.object;
 
-    return completeOrderPayment(tx, {
+    return processSuccessfulPaymentEvent(event, {
       orderId: getOrderIdFromSession(session),
-      paymentIntentId: getPaymentIntentId(session.payment_intent),
+      stripePaymentIntentId: getPaymentIntentId(session.payment_intent),
       stripePaymentStatus: session.payment_status || "paid",
       stripeCheckoutSessionId: session.id,
     });
@@ -351,9 +527,9 @@ const processStripeEvent = async (tx, event) => {
   if (event.type === "payment_intent.succeeded") {
     const paymentIntent = event.data.object;
 
-    return completeOrderPayment(tx, {
+    return processSuccessfulPaymentEvent(event, {
       orderId: getOrderIdFromPaymentIntent(paymentIntent),
-      paymentIntentId: paymentIntent.id,
+      stripePaymentIntentId: paymentIntent.id,
       stripePaymentStatus: paymentIntent.status,
     });
   }
@@ -361,7 +537,7 @@ const processStripeEvent = async (tx, event) => {
   if (event.type === "checkout.session.expired") {
     const session = event.data.object;
 
-    return updatePendingOrderFromStripe(tx, {
+    return updatePendingOrderFromStripe(event, {
       orderId: getOrderIdFromSession(session),
       nextStatus: ORDER_STATUS.CANCELLED,
       stripePaymentStatus: session.payment_status || "expired",
@@ -372,10 +548,10 @@ const processStripeEvent = async (tx, event) => {
   if (event.type === "checkout.session.async_payment_failed") {
     const session = event.data.object;
 
-    return updatePendingOrderFromStripe(tx, {
+    return updatePendingOrderFromStripe(event, {
       orderId: getOrderIdFromSession(session),
       nextStatus: ORDER_STATUS.FAILED,
-      paymentIntentId: getPaymentIntentId(session.payment_intent),
+      stripePaymentIntentId: getPaymentIntentId(session.payment_intent),
       stripePaymentStatus: session.payment_status || "failed",
       stripeCheckoutSessionId: session.id,
     });
@@ -384,47 +560,40 @@ const processStripeEvent = async (tx, event) => {
   if (event.type === "payment_intent.payment_failed") {
     const paymentIntent = event.data.object;
 
-    return updatePendingOrderFromStripe(tx, {
+    return updatePendingOrderFromStripe(event, {
       orderId: getOrderIdFromPaymentIntent(paymentIntent),
       nextStatus: ORDER_STATUS.FAILED,
-      paymentIntentId: paymentIntent.id,
+      stripePaymentIntentId: paymentIntent.id,
       stripePaymentStatus: paymentIntent.status || "failed",
     });
   }
 
-  return {
-    ignored: true,
-  };
+  return prisma.$transaction(async (tx) => {
+    await createStripeEvent(tx, event, null);
+
+    return {
+      ignored: true,
+      processed: true,
+    };
+  });
 };
 
 exports.handleStripeEvent = async (event) => {
+  const existingEvent = await prisma.stripeEvent.findUnique({
+    where: {
+      stripeEventId: event.id,
+    },
+  });
+
+  if (existingEvent) {
+    return {
+      alreadyProcessed: true,
+      processed: false,
+    };
+  }
+
   try {
-    return await prisma.$transaction(async (tx) => {
-      const stripeEvent = await tx.stripeEvent.create({
-        data: {
-          stripeEventId: event.id,
-          type: event.type,
-        },
-      });
-
-      const result = await processStripeEvent(tx, event);
-
-      if (result.orderId) {
-        await tx.stripeEvent.update({
-          where: {
-            id: stripeEvent.id,
-          },
-          data: {
-            orderId: result.orderId,
-          },
-        });
-      }
-
-      return {
-        ...result,
-        processed: true,
-      };
-    });
+    return await processStripeEvent(event);
   } catch (error) {
     if (
       error.code === "P2002" &&

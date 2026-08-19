@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, ref } from "vue";
 import PaginationControls from "./PaginationControls.vue";
-import { API_URL } from "../../config";
+import { apiClient } from "../../services/apiClient";
 
 const products = ref([]);
 const editingProductId = ref(null);
@@ -11,6 +11,9 @@ const filters = ref({
   minPrice: "",
   maxPrice: "",
 });
+const loading = ref(false);
+const errorMessage = ref("");
+const successMessage = ref("");
 const pagination = ref({
   page: 1,
   limit: 10,
@@ -28,15 +31,13 @@ const productForm = ref({
   stock: 0,
 });
 
-const getToken = () => `Bearer ${localStorage.getItem("token")}`;
-
 const handleImageUpload = (event) => {
   const file = event.target.files?.[0];
 
   if (!file) return;
 
   if (!file.type.startsWith("image/")) {
-    alert("Selecciona un archivo de imagen");
+    errorMessage.value = "Selecciona un archivo de imagen";
     event.target.value = "";
     return;
   }
@@ -56,30 +57,26 @@ const removeImage = () => {
 
 const getProducts = async (page = pagination.value.page) => {
   try {
-    const params = new URLSearchParams({
-      page,
-      limit: pagination.value.limit,
+    loading.value = true;
+    errorMessage.value = "";
+
+    const data = await apiClient.get("/products", {
+      auth: false,
+      query: {
+        page,
+        limit: pagination.value.limit,
+        name: filters.value.name,
+        minPrice: filters.value.minPrice,
+        maxPrice: filters.value.maxPrice,
+      },
     });
-
-    if (filters.value.name) {
-      params.append("name", filters.value.name);
-    }
-
-    if (filters.value.minPrice) {
-      params.append("minPrice", filters.value.minPrice);
-    }
-
-    if (filters.value.maxPrice) {
-      params.append("maxPrice", filters.value.maxPrice);
-    }
-
-    const response = await fetch(`${API_URL}/products?${params.toString()}`);
-    const data = await response.json();
 
     products.value = data.data;
     pagination.value = data.pagination;
   } catch (error) {
-    console.error("ERROR PRODUCTS:", error);
+    errorMessage.value = error.message;
+  } finally {
+    loading.value = false;
   }
 };
 
@@ -120,27 +117,18 @@ const openCreateForm = () => {
 
 const saveProduct = async () => {
   try {
+    errorMessage.value = "";
+    successMessage.value = "";
+
     const isEditing = editingProductId.value !== null;
 
-    const url = isEditing
-      ? `${API_URL}/products/${editingProductId.value}`
-      : `${API_URL}/products`;
-
-    const method = isEditing ? "PUT" : "POST";
-
-    const response = await fetch(url, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: getToken(),
-      },
-      body: JSON.stringify(productForm.value),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      alert(error.error);
-      return;
+    if (isEditing) {
+      await apiClient.put(
+        `/products/${editingProductId.value}`,
+        productForm.value
+      );
+    } else {
+      await apiClient.post("/products", productForm.value);
     }
 
     resetForm();
@@ -148,9 +136,11 @@ const saveProduct = async () => {
 
     await getProducts(isEditing ? pagination.value.page : 1);
 
-    alert(isEditing ? "Producto actualizado" : "Producto creado");
+    successMessage.value = isEditing
+      ? "Producto actualizado"
+      : "Producto creado";
   } catch (error) {
-    console.error(error);
+    errorMessage.value = error.message;
   }
 };
 
@@ -178,12 +168,10 @@ const deleteProduct = async (id) => {
   if (!confirmed) return;
 
   try {
-    await fetch(`${API_URL}/products/${id}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: getToken(),
-      },
-    });
+    errorMessage.value = "";
+    successMessage.value = "";
+
+    await apiClient.delete(`/products/${id}`);
 
     const nextPage =
       products.value.length === 1 && pagination.value.page > 1
@@ -191,8 +179,9 @@ const deleteProduct = async (id) => {
         : pagination.value.page;
 
     await getProducts(nextPage);
+    successMessage.value = "Producto eliminado";
   } catch (error) {
-    console.error(error);
+    errorMessage.value = error.message;
   }
 };
 
@@ -210,6 +199,16 @@ onMounted(() => {
         + Agregar Producto
       </button>
     </div>
+
+    <p v-if="loading">Cargando productos...</p>
+
+    <p v-if="errorMessage" class="error">
+      {{ errorMessage }}
+    </p>
+
+    <p v-if="successMessage" class="success">
+      {{ successMessage }}
+    </p>
 
     <div class="filters-bar">
       <input v-model="filters.name" placeholder="Buscar por nombre" />

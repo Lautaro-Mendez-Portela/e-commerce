@@ -1,12 +1,10 @@
 <script setup>
 import { onMounted, ref } from "vue";
-import { API_URL } from "../../config";
+import { apiClient } from "../../services/apiClient";
 
 const dashboard = ref(null);
 const loading = ref(false);
 const errorMessage = ref("");
-
-const getToken = () => `Bearer ${localStorage.getItem("token")}`;
 
 const formatMoney = (value) => {
   return new Intl.NumberFormat("es-AR", {
@@ -19,7 +17,7 @@ const getOrderTotal = (order) => {
   if (!order?.items) return 0;
 
   return order.items.reduce((total, item) => {
-    return total + item.quantity * item.price;
+    return total + item.quantity * Number(item.price);
   }, 0);
 };
 
@@ -28,17 +26,7 @@ const getDashboard = async () => {
     loading.value = true;
     errorMessage.value = "";
 
-    const response = await fetch(`${API_URL}/dashboard/admin`, {
-      headers: {
-        Authorization: getToken(),
-      },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || "Error al obtener dashboard");
-    }
+    const data = await apiClient.get("/dashboard/admin");
 
     dashboard.value = data;
   } catch (error) {

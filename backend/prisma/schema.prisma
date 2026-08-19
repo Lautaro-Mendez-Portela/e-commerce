@@ -57,20 +57,26 @@ model Favorite {
 }
 
 model Order {
-  id                      Int           @id @default(autoincrement())
-  userId                  Int
-  user                    User          @relation(fields: [userId], references: [id])
-  total                   Decimal       @db.Decimal(12, 2)
-  createdAt               DateTime      @default(now())
-  updatedAt               DateTime      @default(now()) @updatedAt
-  items                   OrderItem[]
-  status                  OrderStatus   @default(PENDING)
-  paymentIntentId         String?
-  stripeCheckoutSessionId String?       @unique
-  stripePaymentStatus     String?
-  paidAt                  DateTime?
-  cancelledAt             DateTime?
-  stripeEvents            StripeEvent[]
+  id                             Int           @id @default(autoincrement())
+  userId                         Int
+  user                           User          @relation(fields: [userId], references: [id])
+  total                          Decimal       @db.Decimal(12, 2)
+  createdAt                      DateTime      @default(now())
+  updatedAt                      DateTime      @default(now()) @updatedAt
+  items                          OrderItem[]
+  status                         OrderStatus   @default(PENDING)
+  stripePaymentIntentId          String?       @map("paymentIntentId")
+  stripeCheckoutSessionId        String?       @unique
+  stripeCheckoutSessionUrl       String?
+  stripeCheckoutSessionExpiresAt DateTime?
+  stripeCheckoutSessionAttempt   Int           @default(0)
+  stripePaymentStatus            String?
+  stripeRefundId                 String?       @unique
+  stripeRefundStatus             String?
+  paidAt                         DateTime?
+  refundedAt                     DateTime?
+  cancelledAt                    DateTime?
+  stripeEvents                   StripeEvent[]
 }
 
 model OrderItem {
@@ -124,4 +130,5 @@ enum OrderStatus {
   DELIVERED
   CANCELLED
   FAILED
+  REFUNDED
 }

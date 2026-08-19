@@ -13,6 +13,7 @@ const orderStatusSchema = z.enum([
   "DELIVERED",
   "CANCELLED",
   "FAILED",
+  "REFUNDED",
 ]);
 
 exports.adminOrdersQuerySchema = z.object({
@@ -27,6 +28,7 @@ exports.adminOrdersQuerySchema = z.object({
     "DELIVERED",
     "CANCELLED",
     "FAILED",
+    "REFUNDED",
   ]).optional(),
   dateFrom: dateQuerySchema.optional(),
   dateTo: dateQuerySchema.optional(),

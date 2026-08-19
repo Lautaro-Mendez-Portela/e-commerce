@@ -48,6 +48,97 @@ const getOwnedOrder = async (orderId, userId) => {
   return order;
 };
 
+const getPaymentIntentId = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  return value.id || null;
+};
+
+const getCheckoutSessionExpiresAt = (session) => {
+  if (!session.expires_at) {
+    return null;
+  }
+
+  return new Date(session.expires_at * 1000);
+};
+
+const isMissingStripeResource = (error) => {
+  return error.code === "resource_missing" || error.statusCode === 404;
+};
+
+const isReusableCheckoutSession = (session) => {
+  const expiresAt = getCheckoutSessionExpiresAt(session);
+
+  return session.status === "open" &&
+    session.url &&
+    (!expiresAt || expiresAt > new Date());
+};
+
+const getReusableCheckoutSession = async (order) => {
+  if (!order.stripeCheckoutSessionId) {
+    return {
+      session: null,
+      attempt: order.stripeCheckoutSessionAttempt || 0,
+    };
+  }
+
+  let session;
+
+  try {
+    session = await stripe.checkout.sessions.retrieve(
+      order.stripeCheckoutSessionId
+    );
+  } catch (error) {
+    if (isMissingStripeResource(error)) {
+      return {
+        session: null,
+        attempt: (order.stripeCheckoutSessionAttempt || 0) + 1,
+      };
+    }
+
+    throw error;
+  }
+
+  if (isReusableCheckoutSession(session)) {
+    await prisma.order.update({
+      where: {
+        id: order.id,
+      },
+      data: {
+        stripeCheckoutSessionUrl: session.url,
+        stripeCheckoutSessionExpiresAt: getCheckoutSessionExpiresAt(session),
+        stripePaymentIntentId:
+          getPaymentIntentId(session.payment_intent) ||
+          order.stripePaymentIntentId,
+      },
+    });
+
+    return {
+      session,
+      attempt: order.stripeCheckoutSessionAttempt || 0,
+    };
+  }
+
+  if (session.status === "complete") {
+    throw new AppError(
+      409,
+      "CHECKOUT_ALREADY_COMPLETED",
+      "La sesion de pago ya fue completada y esta pendiente de confirmacion"
+    );
+  }
+
+  return {
+    session: null,
+    attempt: (order.stripeCheckoutSessionAttempt || 0) + 1,
+  };
+};
+
 exports.createPaymentIntent = async (
   orderId,
   userId
@@ -55,6 +146,10 @@ exports.createPaymentIntent = async (
 
   const order =
     await getOwnedOrder(orderId, userId);
+
+  if (order.stripePaymentIntentId) {
+    return stripe.paymentIntents.retrieve(order.stripePaymentIntentId);
+  }
 
   const paymentIntent =
     await stripe.paymentIntents.create({
@@ -71,7 +166,18 @@ exports.createPaymentIntent = async (
       automatic_payment_methods: {
         enabled: true
       }
+    }, {
+      idempotencyKey: `payment_intent_order_${order.id}`
     });
+
+  await prisma.order.update({
+    where: {
+      id: order.id,
+    },
+    data: {
+      stripePaymentIntentId: paymentIntent.id,
+    },
+  });
 
   return paymentIntent;
 };
@@ -81,6 +187,12 @@ exports.createCheckoutSession =
 
     const order =
       await getOwnedOrder(orderId, userId);
+
+    const reusableCheckout = await getReusableCheckoutSession(order);
+
+    if (reusableCheckout.session) {
+      return reusableCheckout.session;
+    }
 
     const session =
       await stripe.checkout.sessions.create({
@@ -136,6 +248,9 @@ exports.createCheckoutSession =
             String(order.userId)
         }
 
+      }, {
+        idempotencyKey:
+          `checkout_session_order_${order.id}_attempt_${reusableCheckout.attempt}`
       });
 
     await prisma.order.update({
@@ -143,7 +258,13 @@ exports.createCheckoutSession =
         id: order.id
       },
       data: {
-        stripeCheckoutSessionId: session.id
+        stripeCheckoutSessionId: session.id,
+        stripeCheckoutSessionUrl: session.url,
+        stripeCheckoutSessionExpiresAt: getCheckoutSessionExpiresAt(session),
+        stripeCheckoutSessionAttempt: reusableCheckout.attempt,
+        stripePaymentIntentId:
+          getPaymentIntentId(session.payment_intent) ||
+          order.stripePaymentIntentId,
       }
     });
 

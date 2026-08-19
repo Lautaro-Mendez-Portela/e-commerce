@@ -1,10 +1,13 @@
 <script setup>
 import { onMounted, ref } from "vue";
 import PaginationControls from "./PaginationControls.vue";
-import { API_URL } from "../../config";
+import { apiClient } from "../../services/apiClient";
 
 const users = ref([]);
 const selectedUser = ref(null);
+const loading = ref(false);
+const errorMessage = ref("");
+const successMessage = ref("");
 const selectedUserOrdersPagination = ref({
   page: 1,
   limit: 10,
@@ -22,33 +25,32 @@ const pagination = ref({
   hasPreviousPage: false,
 });
 
-const getToken = () => `Bearer ${localStorage.getItem("token")}`;
-
 const getOrderTotal = (order) => {
   if (!order.items) return 0;
 
   return order.items.reduce((total, item) => {
-    return total + item.quantity * item.price;
+    return total + item.quantity * Number(item.price);
   }, 0);
 };
 
 const getUsers = async (page = pagination.value.page) => {
   try {
-    const response = await fetch(
-      `${API_URL}/users?page=${page}&limit=${pagination.value.limit}`,
-      {
-        headers: {
-          Authorization: getToken(),
-        },
-      }
-    );
+    loading.value = true;
+    errorMessage.value = "";
 
-    const data = await response.json();
+    const data = await apiClient.get("/users", {
+      query: {
+        page,
+        limit: pagination.value.limit,
+      },
+    });
 
     users.value = data.data;
     pagination.value = data.pagination;
   } catch (error) {
-    console.error("ERROR USERS:", error);
+    errorMessage.value = error.message;
+  } finally {
+    loading.value = false;
   }
 };
 
@@ -61,26 +63,19 @@ const viewProfile = async (
   page = selectedUserOrdersPagination.value.page
 ) => {
   try {
-    const response = await fetch(
-      `${API_URL}/users/${id}?page=${page}&limit=${selectedUserOrdersPagination.value.limit}`,
-      {
-        headers: {
-          Authorization: getToken(),
-        },
-      }
-    );
+    errorMessage.value = "";
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      alert(data.error || "Error al obtener perfil");
-      return;
-    }
+    const data = await apiClient.get(`/users/${id}`, {
+      query: {
+        page,
+        limit: selectedUserOrdersPagination.value.limit,
+      },
+    });
 
     selectedUser.value = data;
     selectedUserOrdersPagination.value = data.ordersPagination;
   } catch (error) {
-    console.error("ERROR USER PROFILE:", error);
+    errorMessage.value = error.message;
   }
 };
 
@@ -96,18 +91,10 @@ const deleteUser = async (id) => {
   if (!confirmed) return;
 
   try {
-    const response = await fetch(`${API_URL}/users/${id}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: getToken(),
-      },
-    });
+    errorMessage.value = "";
+    successMessage.value = "";
 
-    if (!response.ok) {
-      const data = await response.json();
-      alert(data.error || "Error al eliminar usuario");
-      return;
-    }
+    await apiClient.delete(`/users/${id}`);
 
     if (selectedUser.value?.id === id) {
       selectedUser.value = null;
@@ -119,8 +106,9 @@ const deleteUser = async (id) => {
         : pagination.value.page;
 
     await getUsers(nextPage);
+    successMessage.value = "Usuario eliminado";
   } catch (error) {
-    console.error("ERROR DELETE USER:", error);
+    errorMessage.value = error.message;
   }
 };
 
@@ -132,6 +120,16 @@ onMounted(() => {
 <template>
   <section>
     <h3>Usuarios</h3>
+
+    <p v-if="loading">Cargando usuarios...</p>
+
+    <p v-if="errorMessage" class="error">
+      {{ errorMessage }}
+    </p>
+
+    <p v-if="successMessage" class="success">
+      {{ successMessage }}
+    </p>
 
     <p>Total usuarios: {{ pagination.total }}</p>
 
