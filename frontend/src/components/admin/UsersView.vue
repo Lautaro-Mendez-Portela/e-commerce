@@ -1,8 +1,7 @@
 <script setup>
 import { onMounted, ref } from "vue";
 import PaginationControls from "./PaginationControls.vue";
-
-const API_URL = "http://localhost:3000";
+import { API_URL } from "../../config";
 
 const users = ref([]);
 const selectedUser = ref(null);

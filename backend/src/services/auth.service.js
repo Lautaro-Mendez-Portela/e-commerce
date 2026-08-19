@@ -1,6 +1,8 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const prisma = require("../config/prisma");
+const env = require("../config/env");
+const AppError = require("../utils/app-error");
 
 exports.register = async ({ firstName, lastName, email, password }) => {
   const existingUser = await prisma.user.findUnique({
@@ -8,7 +10,7 @@ exports.register = async ({ firstName, lastName, email, password }) => {
   });
 
   if (existingUser) {
-    throw new Error("El usuario ya existe");
+    throw new AppError(409, "USER_ALREADY_EXISTS", "El usuario ya existe");
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
@@ -36,11 +38,11 @@ exports.login = async ({ email, password }) => {
   });
 
   if (!user) {
-    throw new Error("Usuario no encontrado");
+    throw new AppError(401, "INVALID_CREDENTIALS", "Credenciales invalidas");
   }
 
   if (!user.isActive) {
-    throw new Error("Usuario deshabilitado");
+    throw new AppError(403, "ACCOUNT_DISABLED", "Usuario deshabilitado");
   }
 
   const validPassword = await bcrypt.compare(
@@ -49,21 +51,21 @@ exports.login = async ({ email, password }) => {
   );
 
   if (!validPassword) {
-    throw new Error("Password incorrecta");
+    throw new AppError(401, "INVALID_CREDENTIALS", "Credenciales invalidas");
   }
 
   const accessToken = jwt.sign(
     { userId: user.id,
       role: user.role
      },
-    "secret",
-    { expiresIn: "15m" }
+    env.jwtSecret,
+    { expiresIn: env.accessTokenExpiresIn }
   );
 
   const refreshToken = jwt.sign(
     { userId: user.id },
-    "refresh_secret",
-    { expiresIn: "7d" }
+    env.jwtRefreshSecret,
+    { expiresIn: env.refreshTokenExpiresIn }
   );
 
   await prisma.refreshToken.create({
@@ -81,7 +83,7 @@ exports.login = async ({ email, password }) => {
 
 exports.refresh = async (refreshToken) => {
   if (!refreshToken) {
-    throw new Error("Refresh token requerido");
+    throw new AppError(400, "REFRESH_TOKEN_REQUIRED", "Refresh token requerido");
   }
 
   const storedToken = await prisma.refreshToken.findFirst({
@@ -91,14 +93,14 @@ exports.refresh = async (refreshToken) => {
   });
 
   if (!storedToken) {
-    throw new Error("Refresh token inválido");
+    throw new AppError(401, "INVALID_REFRESH_TOKEN", "Refresh token invalido");
   }
 
   try {
 
     const decoded = jwt.verify(
       refreshToken,
-      "refresh_secret"
+      env.jwtRefreshSecret
     );
 
     const user = await prisma.user.findUnique({
@@ -108,7 +110,7 @@ exports.refresh = async (refreshToken) => {
     });
 
     if (!user || !user.isActive) {
-      throw new Error("Usuario deshabilitado");
+      throw new AppError(403, "ACCOUNT_DISABLED", "Usuario deshabilitado");
     }
 
     const accessToken = jwt.sign(
@@ -116,13 +118,21 @@ exports.refresh = async (refreshToken) => {
         userId: user.id,
         role: user.role
       },
-      "secret",
-      { expiresIn: "15m" }
+      env.jwtSecret,
+      { expiresIn: env.accessTokenExpiresIn }
     );
 
     return { accessToken };
 
-  } catch {
-    throw new Error("Refresh token expirado");
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    throw new AppError(
+      401,
+      "REFRESH_TOKEN_EXPIRED",
+      "Refresh token expirado"
+    );
   }
 };

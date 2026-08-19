@@ -1,4 +1,14 @@
 const prisma = require("../config/prisma");
+const AppError = require("../utils/app-error");
+const {
+  addMoney,
+  multiplyMoney,
+  toDecimal
+} = require("../utils/money");
+const {
+  ORDER_STATUS,
+  assertOrderTransition
+} = require("../utils/order-status");
 const {
   buildPaginatedResponse
 } = require("../utils/pagination");
@@ -17,10 +27,10 @@ exports.createOrder = async (userId) => {
     });
 
     if (cartItems.length === 0) {
-      throw new Error("Carrito vacío");
+      throw new AppError(400, "EMPTY_CART", "Carrito vacio");
     }
 
-    let total = 0;
+    let total = toDecimal(0);
 
     const orderItemsData = [];
 
@@ -28,21 +38,40 @@ exports.createOrder = async (userId) => {
       const product = item.product;
 
       if (!product) {
-        throw new Error("Producto no encontrado");
+        throw new AppError(404, "PRODUCT_NOT_FOUND", "Producto no encontrado");
+      }
+
+      if (!Number.isInteger(item.quantity) || item.quantity < 1) {
+        throw new AppError(
+          400,
+          "INVALID_CART_QUANTITY",
+          "El carrito contiene cantidades invalidas"
+        );
+      }
+
+      if (!product.isActive) {
+        throw new AppError(404, "PRODUCT_NOT_FOUND", "Producto no encontrado");
       }
 
       if (product.stock < item.quantity) {
-        throw new Error(`Stock insuficiente para ${product.name}`);
+        throw new AppError(
+          409,
+          "INSUFFICIENT_STOCK",
+          `Stock insuficiente para ${product.name}`
+        );
       }
 
-      total += product.price * item.quantity;
+      const subtotal = multiplyMoney(product.price, item.quantity);
+
+      total = addMoney(total, subtotal);
 
       orderItemsData.push({
         productId: product.id,
-
+        cartItemId: item.id,
+        productName: product.name,
         quantity: item.quantity,
-
         price: product.price,
+        subtotal,
       });
     }
 
@@ -51,6 +80,7 @@ exports.createOrder = async (userId) => {
         userId,
 
         total,
+        status: ORDER_STATUS.PENDING,
 
         items: {
           create: orderItemsData,
@@ -59,26 +89,6 @@ exports.createOrder = async (userId) => {
 
       include: {
         items: true,
-      },
-    });
-
-    for (const item of cartItems) {
-      await tx.product.update({
-        where: {
-          id: item.productId,
-        },
-
-        data: {
-          stock: {
-            decrement: item.quantity,
-          },
-        },
-      });
-    }
-
-    await tx.cartItem.deleteMany({
-      where: {
-        userId,
       },
     });
 
@@ -146,6 +156,32 @@ exports.getAllOrders = async ({
     total,
     page,
     limit,
+  });
+};
+
+exports.updateOrderStatus = async (orderId, nextStatus) => {
+  const order = await prisma.order.findUnique({
+    where: {
+      id: Number(orderId),
+    },
+  });
+
+  if (!order) {
+    throw new AppError(404, "ORDER_NOT_FOUND", "Orden no encontrada");
+  }
+
+  assertOrderTransition(order.status, nextStatus, "ADMIN");
+
+  return prisma.order.update({
+    where: {
+      id: order.id,
+    },
+    data: {
+      status: nextStatus,
+      cancelledAt: nextStatus === ORDER_STATUS.CANCELLED
+        ? new Date()
+        : order.cancelledAt,
+    },
   });
 };
 

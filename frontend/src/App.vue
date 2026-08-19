@@ -5,10 +5,9 @@ import LoginForm from "./components/LoginForm.vue";
 import AdminPanel from "./components/admin/AdminPanel.vue";
 import PaginationControls from "./components/admin/PaginationControls.vue";
 import ProfileView from "./components/ProfileView.vue";
+import { API_URL } from "./config";
 
 import { jwtDecode } from "jwt-decode";
-
-const API_URL = "http://localhost:3000";
 
 const products = ref([]);
 const productPagination = ref({

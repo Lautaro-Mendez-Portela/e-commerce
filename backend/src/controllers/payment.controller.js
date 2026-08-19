@@ -1,27 +1,26 @@
 const paymentService = require("../services/payment.service");
 
-exports.checkout = async (req, res) => {
+exports.checkout = async (req, res, next) => {
   try {
-    console.log(req.body);
-
-
     const { orderId } = req.body;
 
-    const paymentIntent = await paymentService.createPaymentIntent(orderId);
+    const paymentIntent = await paymentService.createPaymentIntent(
+      orderId,
+      req.user.userId
+    );
 
     res.json({
       clientSecret: paymentIntent.client_secret,
     });
   } catch (error) {
-    res.status(500).json({
-      error: error.message,
-    });
+    next(error);
   }
 };
 
 exports.createCheckoutSession = async (
   req,
-  res
+  res,
+  next
 ) => {
 
   try {
@@ -30,7 +29,8 @@ exports.createCheckoutSession = async (
 
     const session =
       await paymentService.createCheckoutSession(
-        orderId
+        orderId,
+        req.user.userId
       );
 
     res.json({
@@ -38,10 +38,7 @@ exports.createCheckoutSession = async (
     });
 
   } catch (error) {
-
-    res.status(500).json({
-      error: error.message
-    });
+    next(error);
 
   }
 

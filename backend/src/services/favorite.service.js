@@ -1,4 +1,5 @@
 const prisma = require("../config/prisma");
+const AppError = require("../utils/app-error");
 
 exports.getFavorites = async (userId) => {
   return await prisma.favorite.findMany({
@@ -18,6 +19,17 @@ exports.getFavorites = async (userId) => {
 };
 
 exports.addFavorite = async (userId, productId) => {
+  const product = await prisma.product.findFirst({
+    where: {
+      id: Number(productId),
+      isActive: true,
+    },
+  });
+
+  if (!product) {
+    throw new AppError(404, "PRODUCT_NOT_FOUND", "Producto no encontrado");
+  }
+
   return await prisma.favorite.upsert({
     where: {
       userId_productId: {

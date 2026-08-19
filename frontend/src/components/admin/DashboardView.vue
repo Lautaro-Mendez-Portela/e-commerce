@@ -1,7 +1,6 @@
 <script setup>
 import { onMounted, ref } from "vue";
-
-const API_URL = "http://localhost:3000";
+import { API_URL } from "../../config";
 
 const dashboard = ref(null);
 const loading = ref(false);

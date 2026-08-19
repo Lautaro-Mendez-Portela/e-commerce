@@ -1,24 +1,26 @@
 const authService = require("../services/auth.service");
 
-exports.register = async (req, res) => {
+exports.register = async (req, res, next) => {
   try {
     const user = await authService.register(req.body);
+
     res.status(201).json(user);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    next(error);
   }
 };
 
-exports.login = async (req, res) => {
+exports.login = async (req, res, next) => {
   try {
     const data = await authService.login(req.body);
+
     res.json(data);
   } catch (error) {
-    res.status(401).json({ error: error.message });
+    next(error);
   }
 };
 
-exports.refresh = async (req, res) => {
+exports.refresh = async (req, res, next) => {
   try {
     const { refreshToken } = req.body;
 
@@ -27,8 +29,6 @@ exports.refresh = async (req, res) => {
     res.json(data);
 
   } catch (error) {
-    res.status(401).json({
-      error: error.message
-    });
+    next(error);
   }
 };

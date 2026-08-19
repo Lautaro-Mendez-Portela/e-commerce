@@ -30,15 +30,15 @@ exports.getProducts = async ({
     };
   }
 
-  if (minPrice || maxPrice) {
+  if (minPrice !== undefined || maxPrice !== undefined) {
     where.price = {};
 
-    if (minPrice) {
-      where.price.gte = Number(minPrice);
+    if (minPrice !== undefined) {
+      where.price.gte = minPrice;
     }
 
-    if (maxPrice) {
-      where.price.lte = Number(maxPrice);
+    if (maxPrice !== undefined) {
+      where.price.lte = maxPrice;
     }
   }
 

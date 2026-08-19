@@ -8,19 +8,19 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  firstName String   @default("")
-  lastName  String   @default("")
-  email     String   @unique
+  id        Int        @id @default(autoincrement())
+  firstName String     @default("")
+  lastName  String     @default("")
+  email     String     @unique
   password  String
-  role      String  @default("USER")
-  isActive  Boolean @default(true)
-  createdAt DateTime @default(now())
-  orders Order[]
+  role      String     @default("USER")
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  orders    Order[]
   cartItems CartItem[]
   favorites Favorite[]
 
-  tokens    RefreshToken[]
+  tokens RefreshToken[]
 }
 
 model RefreshToken {
@@ -32,17 +32,17 @@ model RefreshToken {
 }
 
 model Product {
-  id          Int      @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   name        String
   description String
   imageUrl    String?
-  price       Float
+  price       Decimal     @db.Decimal(10, 2)
   stock       Int
-  orderItems OrderItem[]
-  cartItems CartItem[]
-  favorites Favorite[]
-  createdAt   DateTime @default(now())
-  isActive Boolean @default(true)
+  orderItems  OrderItem[]
+  cartItems   CartItem[]
+  favorites   Favorite[]
+  createdAt   DateTime    @default(now())
+  isActive    Boolean     @default(true)
 }
 
 model Favorite {
@@ -57,41 +57,71 @@ model Favorite {
 }
 
 model Order {
-  id        Int         @id @default(autoincrement())
-  userId    Int
-  user      User        @relation(fields: [userId], references: [id])
-  total     Float
-  createdAt DateTime    @default(now())
-  items      OrderItem[]
-  status String @default("PENDING")
-  paymentIntentId String?
+  id                      Int           @id @default(autoincrement())
+  userId                  Int
+  user                    User          @relation(fields: [userId], references: [id])
+  total                   Decimal       @db.Decimal(12, 2)
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @default(now()) @updatedAt
+  items                   OrderItem[]
+  status                  OrderStatus   @default(PENDING)
+  paymentIntentId         String?
+  stripeCheckoutSessionId String?       @unique
+  stripePaymentStatus     String?
+  paidAt                  DateTime?
+  cancelledAt             DateTime?
+  stripeEvents            StripeEvent[]
 }
 
 model OrderItem {
-  id         Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
-  orderId    Int
-  order      Order    @relation(fields: [orderId], references: [id])
-
-  productId  Int
-  product    Product  @relation(fields: [productId], references: [id])
-
-  quantity   Int
-  price      Float
-}
-
-model CartItem {
-  id        Int @id @default(autoincrement())
-
-  userId    Int
-  user      User @relation(fields: [userId], references: [id])
+  orderId Int
+  order   Order @relation(fields: [orderId], references: [id])
 
   productId Int
   product   Product @relation(fields: [productId], references: [id])
 
-  quantity  Int
+  cartItemId  Int?
+  productName String  @default("")
+  quantity    Int
+  price       Decimal @db.Decimal(10, 2)
+  subtotal    Decimal @db.Decimal(12, 2)
+}
+
+model CartItem {
+  id Int @id @default(autoincrement())
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+
+  quantity Int
 
   createdAt DateTime @default(now())
 
   @@unique([id, userId])
+}
+
+model StripeEvent {
+  id            Int      @id @default(autoincrement())
+  stripeEventId String   @unique
+  type          String
+  orderId       Int?
+  order         Order?   @relation(fields: [orderId], references: [id])
+  processedAt   DateTime @default(now())
+
+  @@index([orderId])
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  FAILED
 }

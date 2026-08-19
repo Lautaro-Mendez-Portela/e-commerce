@@ -3,7 +3,7 @@ const {
   getPaginationParams
 } = require("../utils/pagination");
 
-exports.createProduct = async (req, res) => {
+exports.createProduct = async (req, res, next) => {
 
   try {
 
@@ -14,15 +14,12 @@ exports.createProduct = async (req, res) => {
     res.status(201).json(product);
 
   } catch (error) {
-
-    res.status(500).json({
-      error: error.message
-    });
+    next(error);
 
   }
 };
 
-exports.getProducts = async (req, res) => {
+exports.getProducts = async (req, res, next) => {
 
   try {
     const pagination = getPaginationParams(req.query);
@@ -37,15 +34,12 @@ exports.getProducts = async (req, res) => {
     res.json(products);
 
   } catch (error) {
-
-    res.status(500).json({
-      error: error.message
-    });
+    next(error);
 
   }
 };
 
-exports.updateProduct = async (req, res) => {
+exports.updateProduct = async (req, res, next) => {
   try {
     const product =
       await productService.updateProduct(
@@ -56,15 +50,12 @@ exports.updateProduct = async (req, res) => {
     res.json(product);
 
   } catch (error) {
-
-    res.status(500).json({
-      error: error.message
-    });
+    next(error);
 
   }
 };
 
-exports.deleteProduct = async (req, res) => {
+exports.deleteProduct = async (req, res, next) => {
   try {
 
     await productService.deleteProduct(
@@ -74,10 +65,7 @@ exports.deleteProduct = async (req, res) => {
     res.status(204).send();
 
   } catch (error) {
-
-    res.status(500).json({
-      error: error.message
-    });
+    next(error);
 
   }
 };

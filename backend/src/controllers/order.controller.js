@@ -3,19 +3,17 @@ const {
   getPaginationParams
 } = require("../utils/pagination");
 
-exports.createOrder = async (req, res) => {
+exports.createOrder = async (req, res, next) => {
   try {
     const order = await orderService.createOrder(req.user.userId);
 
     res.status(201).json(order);
   } catch (error) {
-    res.status(400).json({
-      error: error.message,
-    });
+    next(error);
   }
 };
 
-exports.getAllOrders = async (req, res) => {
+exports.getAllOrders = async (req, res, next) => {
   try {
     const pagination = getPaginationParams(req.query);
     const orders = await orderService.getAllOrders({
@@ -27,9 +25,19 @@ exports.getAllOrders = async (req, res) => {
 
     res.json(orders);
   } catch (error) {
-    console.error("ERROR GET ORDERS:", error);
-    res.status(500).json({
-      message: "Error al obtener las órdenes",
-    });
+    next(error);
+  }
+};
+
+exports.updateOrderStatus = async (req, res, next) => {
+  try {
+    const order = await orderService.updateOrderStatus(
+      req.params.id,
+      req.body.status
+    );
+
+    res.json(order);
+  } catch (error) {
+    next(error);
   }
 };

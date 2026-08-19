@@ -4,7 +4,8 @@ const cartService = require(
 
 exports.addToCart = async (
   req,
-  res
+  res,
+  next
 ) => {
 
   try {
@@ -25,16 +26,14 @@ exports.addToCart = async (
     res.json(item);
 
   } catch (error) {
-
-    res.status(500).json({
-      error: error.message
-    });
+    next(error);
   }
 };
 
 exports.getCart = async (
   req,
-  res
+  res,
+  next
 ) => {
 
   try {
@@ -47,16 +46,14 @@ exports.getCart = async (
     res.json(cart);
 
   } catch (error) {
-
-    res.status(500).json({
-      error: error.message
-    });
+    next(error);
   }
 };
 
 exports.removeFromCart = async (
   req,
-  res
+  res,
+  next
 ) => {
 
   try {
@@ -74,16 +71,14 @@ exports.removeFromCart = async (
     });
 
   } catch (error) {
-
-    res.status(500).json({
-      error: error.message
-    });
+    next(error);
   }
 };
 
 exports.updateQuantity = async (
   req,
-  res
+  res,
+  next
 ) => {
 
   try {
@@ -101,9 +96,6 @@ exports.updateQuantity = async (
     res.json(item);
 
   } catch (error) {
-
-    res.status(500).json({
-      error: error.message
-    });
+    next(error);
   }
 };

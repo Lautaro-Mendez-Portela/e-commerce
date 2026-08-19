@@ -83,9 +83,20 @@ Crear un archivo `.env` dentro de `backend/`.
 
 ```env
 DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/ecommerce_db"
+JWT_SECRET="replace-with-a-long-random-secret"
+JWT_REFRESH_SECRET="replace-with-a-different-long-random-secret"
+CLIENT_URL="http://localhost:5173"
+API_URL="http://localhost:3000"
+JSON_BODY_LIMIT="1mb"
 STRIPE_SECRET_KEY="sk_test_xxxxxxxxxxxxxxxxx"
 STRIPE_WEBHOOK_SECRET="whsec_xxxxxxxxxxxxxxxxx"
 PORT=3000
+```
+
+Crear tambien un archivo `.env` dentro de `frontend/`.
+
+```env
+VITE_API_URL="http://localhost:3000"
 ```
 
 ## Instalacion

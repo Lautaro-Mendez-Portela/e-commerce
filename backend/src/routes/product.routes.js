@@ -19,13 +19,19 @@ const {
 } = require("../middlewares/validation.middleware");
 
 const {
-  createProductSchema
+  createProductSchema,
+  productParamsSchema,
+  productQuerySchema,
+  updateProductSchema
 } = require("../validators/product.validator");
 
 router.delete(
   "/:id",
   authMiddleware,
   roleMiddleware("ADMIN"),
+  validate({
+    params: productParamsSchema
+  }),
   productController.deleteProduct
 );
 
@@ -33,6 +39,10 @@ router.put(
   "/:id",
   authMiddleware,
   roleMiddleware("ADMIN"),
+  validate({
+    params: productParamsSchema,
+    body: updateProductSchema
+  }),
   productController.updateProduct
 );
 
@@ -43,13 +53,18 @@ router.post(
 
   roleMiddleware("ADMIN"),
 
-  validate(createProductSchema),
+  validate({
+    body: createProductSchema
+  }),
 
   productController.createProduct
 );
 
 router.get(
   "/",
+  validate({
+    query: productQuerySchema
+  }),
   productController.getProducts
 );
 

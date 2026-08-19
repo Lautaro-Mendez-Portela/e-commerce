@@ -1,7 +1,8 @@
 const Stripe = require("stripe");
+const env = require("./env");
 
 const stripe = new Stripe(
-  process.env.STRIPE_SECRET_KEY
+  env.stripeSecretKey
 );
 
 module.exports = stripe;

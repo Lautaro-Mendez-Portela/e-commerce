@@ -1,9 +1,8 @@
 <script setup>
 import { ref } from "vue";
+import { API_URL } from "../config";
 
 const emit = defineEmits(["login-success"]);
-
-const API_URL = "http://localhost:3000";
 
 const firstName = ref("");
 const lastName = ref("");

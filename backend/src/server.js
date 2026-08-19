@@ -1,7 +1,11 @@
 const app = require("./app");
+const env = require("./config/env");
 
-const PORT = process.env.PORT || 3000;
+const server = app.listen(env.port, () => {
+  console.log(`Servidor corriendo en puerto ${env.port}`);
+});
 
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en puerto ${PORT}`);
+server.on("error", (error) => {
+  console.error(`No se pudo iniciar el servidor: ${error.message}`);
+  process.exit(1);
 });

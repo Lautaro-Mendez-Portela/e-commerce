@@ -1,8 +1,7 @@
 <script setup>
 import { onMounted, ref, watch } from "vue";
 import PaginationControls from "./PaginationControls.vue";
-
-const API_URL = "http://localhost:3000";
+import { API_URL } from "../../config";
 
 const orders = ref([]);
 const loading = ref(false);
