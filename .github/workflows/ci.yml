@@ -1,0 +1,228 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - ecommerce-v2
+  push:
+    branches:
+      - main
+      - ecommerce-v2
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22.18.0"
+
+jobs:
+  backend-unit:
+    name: Backend Unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+
+      - name: Syntax check
+        run: npm run check
+
+      - name: Run backend unit tests
+        run: npm run test:unit
+
+  backend-integration:
+    name: Backend Integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ecommerce_test
+          POSTGRES_USER: ecommerce_test
+          POSTGRES_PASSWORD: ecommerce_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ecommerce_test -d ecommerce_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://ecommerce_test:ecommerce_test_password@localhost:5432/ecommerce_test
+      DATABASE_URL_TEST: postgresql://ecommerce_test:ecommerce_test_password@localhost:5432/ecommerce_test
+      JWT_SECRET: ci_test_jwt_secret_change_me_32_chars
+      JWT_REFRESH_SECRET: ci_test_refresh_secret_change_me_32_chars
+      CLIENT_URL: http://localhost:5173
+      STRIPE_SECRET_KEY: sk_test_mock
+      STRIPE_WEBHOOK_SECRET: whsec_test_mock
+      JSON_BODY_LIMIT: 1mb
+      ACCESS_TOKEN_EXPIRES_IN: 15m
+      REFRESH_TOKEN_EXPIRES_IN: 7d
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Apply Prisma migrations
+        run: npm run db:migrate:deploy
+
+      - name: Run backend integration tests with coverage
+        run: npx vitest run --coverage tests/unit tests/integration tests/services tests/webhook tests/admin
+
+      - name: Upload backend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage
+          if-no-files-found: ignore
+          retention-days: 7
+
+  frontend:
+    name: Frontend Test & Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+
+    env:
+      VITE_API_URL: http://127.0.0.1:3000
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run frontend tests
+        run: npm test
+
+      - name: Build frontend
+        run: npm run build
+
+  e2e:
+    name: E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs:
+      - frontend
+
+    env:
+      E2E_BASE_URL: http://127.0.0.1:5173
+      E2E_API_URL: http://127.0.0.1:3000
+      E2E_SKIP_WEB_SERVER: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install frontend dependencies
+        run: npm ci --prefix frontend
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: |
+          npm --prefix frontend run dev -- --host 127.0.0.1 --port 5173 > frontend-vite.log 2>&1 &
+          FRONTEND_PID=$!
+          trap "kill $FRONTEND_PID" EXIT
+
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:5173 > /dev/null; then
+              break
+            fi
+
+            sleep 2
+          done
+
+          curl -fsS http://127.0.0.1:5173 > /dev/null
+          npm run test:e2e
+
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            playwright-report
+            test-results
+            frontend-vite.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  docker-validation:
+    name: Docker Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Compose config
+        run: docker compose config --quiet
+
+      - name: Build Docker images
+        run: docker compose build backend frontend

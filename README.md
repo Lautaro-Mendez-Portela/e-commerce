@@ -135,6 +135,22 @@ npm run docker:test
 
 Documentacion completa: [docs/docker.md](docs/docker.md).
 
+## Continuous Integration
+
+El workflow de CI esta en `.github/workflows/ci.yml` y corre en `pull_request` y `push` sobre `main` y `ecommerce-v2`.
+
+Valida:
+
+- Backend unit tests y syntax check
+- Backend integration/webhook/admin tests con PostgreSQL `ecommerce_test`
+- Prisma `generate` y `migrate deploy`
+- Coverage backend como artifact
+- Frontend tests y build
+- E2E Playwright con API mockeada
+- `docker compose config` y build de imagenes backend/frontend
+
+El pipeline usa variables ficticias de test para JWT y Stripe. No requiere secretos reales ni archivos `.env`.
+
 ### Backend
 
 ```bash
