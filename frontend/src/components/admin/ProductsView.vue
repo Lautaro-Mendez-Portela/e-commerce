@@ -1,7 +1,14 @@
 <script setup>
 import { onMounted, ref } from "vue";
 import PaginationControls from "./PaginationControls.vue";
+import BaseButton from "../ui/BaseButton.vue";
+import BaseInput from "../ui/BaseInput.vue";
+import BaseSpinner from "../ui/BaseSpinner.vue";
+import BaseTextarea from "../ui/BaseTextarea.vue";
 import { apiClient } from "../../services/apiClient";
+import { useFeedbackStore } from "../../stores/feedbackStore";
+
+const feedbackStore = useFeedbackStore();
 
 const products = ref([]);
 const editingProductId = ref(null);
@@ -139,8 +146,10 @@ const saveProduct = async () => {
     successMessage.value = isEditing
       ? "Producto actualizado"
       : "Producto creado";
+    feedbackStore.success(successMessage.value);
   } catch (error) {
     errorMessage.value = error.message;
+    feedbackStore.error(error.message);
   }
 };
 
@@ -180,8 +189,10 @@ const deleteProduct = async (id) => {
 
     await getProducts(nextPage);
     successMessage.value = "Producto eliminado";
+    feedbackStore.success(successMessage.value);
   } catch (error) {
     errorMessage.value = error.message;
+    feedbackStore.error(error.message);
   }
 };
 
@@ -195,12 +206,15 @@ onMounted(() => {
     <div class="products-header">
       <h3>Productos</h3>
 
-      <button class="add-product-btn" @click="openCreateForm">
+      <BaseButton @click="openCreateForm">
         + Agregar Producto
-      </button>
+      </BaseButton>
     </div>
 
-    <p v-if="loading">Cargando productos...</p>
+    <p v-if="loading" class="info-message cluster">
+      <BaseSpinner size="sm" />
+      Cargando productos...
+    </p>
 
     <p v-if="errorMessage" class="error">
       {{ errorMessage }}
@@ -211,29 +225,32 @@ onMounted(() => {
     </p>
 
     <div class="filters-bar">
-      <input v-model="filters.name" placeholder="Buscar por nombre" />
+      <BaseInput
+        v-model="filters.name"
+        label="Buscar por nombre"
+      />
 
-      <input
+      <BaseInput
         v-model="filters.minPrice"
+        label="Precio minimo"
         type="number"
         min="0"
-        placeholder="Precio minimo"
       />
 
-      <input
+      <BaseInput
         v-model="filters.maxPrice"
+        label="Precio maximo"
         type="number"
         min="0"
-        placeholder="Precio maximo"
       />
 
-      <button class="filter-btn" @click="applyFilters">
+      <BaseButton @click="applyFilters">
         Filtrar
-      </button>
+      </BaseButton>
 
-      <button class="clear-btn" @click="clearFilters">
+      <BaseButton variant="secondary" @click="clearFilters">
         Limpiar
-      </button>
+      </BaseButton>
     </div>
 
     <div v-if="showForm" class="admin-panel">
@@ -241,18 +258,17 @@ onMounted(() => {
         {{ editingProductId ? "Editar Producto" : "Crear Producto" }}
       </h3>
 
-      <label class="form-field">
-        <span>Nombre</span>
-        <input v-model="productForm.name" placeholder="Nombre del producto" />
-      </label>
+      <BaseInput
+        v-model="productForm.name"
+        label="Nombre"
+        placeholder="Nombre del producto"
+      />
 
-      <label class="form-field">
-        <span>Descripcion</span>
-        <input
-          v-model="productForm.description"
-          placeholder="Descripcion del producto"
-        />
-      </label>
+      <BaseTextarea
+        v-model="productForm.description"
+        label="Descripcion"
+        placeholder="Descripcion del producto"
+      />
 
       <label class="form-field">
         <span>Foto</span>
@@ -270,37 +286,33 @@ onMounted(() => {
           alt="Vista previa del producto"
         />
 
-        <button class="clear-btn" @click="removeImage">
+        <BaseButton variant="secondary" @click="removeImage">
           Quitar foto
-        </button>
+        </BaseButton>
       </div>
 
-      <label class="form-field">
-        <span>Precio</span>
-        <input
-          v-model.number="productForm.price"
-          type="number"
-          placeholder="Precio"
-        />
-      </label>
+      <BaseInput
+        v-model="productForm.price"
+        label="Precio"
+        type="number"
+        numeric
+      />
 
-      <label class="form-field">
-        <span>Stock</span>
-        <input
-          v-model.number="productForm.stock"
-          type="number"
-          placeholder="Stock"
-        />
-      </label>
+      <BaseInput
+        v-model="productForm.stock"
+        label="Stock"
+        type="number"
+        numeric
+      />
 
       <div class="form-actions">
-        <button class="save-btn" @click="saveProduct">
+        <BaseButton @click="saveProduct">
           {{ editingProductId ? "Guardar cambios" : "Crear Producto" }}
-        </button>
+        </BaseButton>
 
-        <button class="cancel-btn" @click="cancelEdit">
+        <BaseButton variant="secondary" @click="cancelEdit">
           Cancelar
-        </button>
+        </BaseButton>
       </div>
     </div>
 
@@ -326,13 +338,21 @@ onMounted(() => {
         <span>Stock: {{ product.stock }}</span>
 
         <div class="actions">
-          <button class="edit-btn" @click="startEdit(product)">
+          <BaseButton
+            variant="outline"
+            size="sm"
+            @click="startEdit(product)"
+          >
             Editar
-          </button>
+          </BaseButton>
 
-          <button class="delete-btn" @click="deleteProduct(product.id)">
+          <BaseButton
+            variant="danger"
+            size="sm"
+            @click="deleteProduct(product.id)"
+          >
             Eliminar
-          </button>
+          </BaseButton>
         </div>
       </div>
     </div>

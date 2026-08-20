@@ -139,6 +139,10 @@ const getReusableCheckoutSession = async (order) => {
   };
 };
 
+const buildClientUrl = (path) => {
+  return `${env.clientUrl.replace(/\/+$/, "")}${path}`;
+};
+
 exports.createPaymentIntent = async (
   orderId,
   userId
@@ -224,10 +228,12 @@ exports.createCheckoutSession =
         mode: "payment",
 
         success_url:
-          `${env.clientUrl}/success?orderId=${order.id}`,
+          buildClientUrl(
+            `/checkout/success?orderId=${order.id}&session_id={CHECKOUT_SESSION_ID}`
+          ),
 
         cancel_url:
-          `${env.clientUrl}/cancel?orderId=${order.id}`,
+          buildClientUrl(`/checkout/cancel?orderId=${order.id}`),
 
         client_reference_id:
           String(order.id),

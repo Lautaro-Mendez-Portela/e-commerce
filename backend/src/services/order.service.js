@@ -96,6 +96,39 @@ exports.createOrder = async (userId) => {
   });
 };
 
+exports.getOrderByIdForUser = async (orderId, userId) => {
+  const order = await prisma.order.findFirst({
+    where: {
+      id: Number(orderId),
+      userId: Number(userId),
+    },
+    include: {
+      items: {
+        orderBy: {
+          id: "asc",
+        },
+        include: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+              imageUrl: true,
+              stock: true,
+              isActive: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!order) {
+    throw new AppError(404, "ORDER_NOT_FOUND", "Orden no encontrada");
+  }
+
+  return order;
+};
+
 exports.getAllOrders = async ({
   page,
   limit,

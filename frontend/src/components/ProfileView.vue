@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from "vue";
 import PaginationControls from "./admin/PaginationControls.vue";
+import BaseSpinner from "./ui/BaseSpinner.vue";
 import { apiClient } from "../services/apiClient";
 
 const profile = ref(null);
@@ -57,7 +58,10 @@ onMounted(() => {
   <main class="profile-section">
     <h2>Mi perfil</h2>
 
-    <p v-if="loading">Cargando perfil...</p>
+    <p v-if="loading" class="info-message cluster">
+      <BaseSpinner size="sm" />
+      Cargando perfil...
+    </p>
 
     <p v-if="errorMessage" class="error">
       {{ errorMessage }}

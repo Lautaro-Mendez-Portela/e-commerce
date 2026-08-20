@@ -1,7 +1,12 @@
 <script setup>
 import { onMounted, ref } from "vue";
 import PaginationControls from "./PaginationControls.vue";
+import BaseButton from "../ui/BaseButton.vue";
+import BaseSpinner from "../ui/BaseSpinner.vue";
 import { apiClient } from "../../services/apiClient";
+import { useFeedbackStore } from "../../stores/feedbackStore";
+
+const feedbackStore = useFeedbackStore();
 
 const users = ref([]);
 const selectedUser = ref(null);
@@ -107,8 +112,10 @@ const deleteUser = async (id) => {
 
     await getUsers(nextPage);
     successMessage.value = "Usuario eliminado";
+    feedbackStore.success(successMessage.value);
   } catch (error) {
     errorMessage.value = error.message;
+    feedbackStore.error(error.message);
   }
 };
 
@@ -121,7 +128,10 @@ onMounted(() => {
   <section>
     <h3>Usuarios</h3>
 
-    <p v-if="loading">Cargando usuarios...</p>
+    <p v-if="loading" class="info-message cluster">
+      <BaseSpinner size="sm" />
+      Cargando usuarios...
+    </p>
 
     <p v-if="errorMessage" class="error">
       {{ errorMessage }}
@@ -153,13 +163,21 @@ onMounted(() => {
         <span>{{ user.role }}</span>
 
         <div class="actions">
-          <button class="edit-btn" @click="viewProfile(user.id, 1)">
+          <BaseButton
+            variant="outline"
+            size="sm"
+            @click="viewProfile(user.id, 1)"
+          >
             Ver perfil
-          </button>
+          </BaseButton>
 
-          <button class="delete-btn" @click="deleteUser(user.id)">
+          <BaseButton
+            variant="danger"
+            size="sm"
+            @click="deleteUser(user.id)"
+          >
             Eliminar
-          </button>
+          </BaseButton>
         </div>
       </div>
     </div>
@@ -173,9 +191,9 @@ onMounted(() => {
       <div class="products-header">
         <h3>Perfil de usuario</h3>
 
-        <button class="clear-btn" @click="selectedUser = null">
+        <BaseButton variant="secondary" size="sm" @click="selectedUser = null">
           Cerrar
-        </button>
+        </BaseButton>
       </div>
 
       <p><strong>Nombre:</strong> {{ selectedUser.firstName }}</p>

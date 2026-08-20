@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 
 import PaginationControls from "../components/admin/PaginationControls.vue";
+import BaseSpinner from "../components/ui/BaseSpinner.vue";
 import { apiClient } from "../services/apiClient";
 
 const route = useRoute();
@@ -81,9 +82,15 @@ onMounted(() => {
 
 <template>
   <main class="profile-section">
-    <h2>Mis ordenes</h2>
+    <header class="page-header">
+      <h1>Mis ordenes</h1>
+      <p>Consulta el estado de tus compras recientes.</p>
+    </header>
 
-    <p v-if="loading">Cargando ordenes...</p>
+    <p v-if="loading" class="info-message cluster">
+      <BaseSpinner size="sm" />
+      Cargando ordenes...
+    </p>
 
     <p v-if="errorMessage" class="error">
       {{ errorMessage }}

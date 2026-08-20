@@ -2,6 +2,8 @@
 import { ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
+import BaseButton from "./ui/BaseButton.vue";
+import BaseInput from "./ui/BaseInput.vue";
 import { useAuthStore } from "../stores/authStore";
 
 const props = defineProps({
@@ -106,45 +108,64 @@ watch(
 <template>
   <div class="login-page">
     <div class="login-card">
-      <h1>E-Commerce</h1>
+      <header class="login-card__header">
+        <h1>E-Commerce</h1>
 
-      <p class="subtitle">
-        {{ isRegistering ? "Crea tu cuenta" : "Inicia sesion para continuar" }}
-      </p>
+        <p class="subtitle">
+          {{ isRegistering ? "Crea tu cuenta" : "Inicia sesion para continuar" }}
+        </p>
+      </header>
 
-      <input
-        v-if="isRegistering"
-        v-model="firstName"
-        placeholder="Nombre"
-      />
+      <form class="login-form" @submit.prevent="submit">
+        <BaseInput
+          v-if="isRegistering"
+          v-model="firstName"
+          label="Nombre"
+          autocomplete="given-name"
+        />
 
-      <input
-        v-if="isRegistering"
-        v-model="lastName"
-        placeholder="Apellido"
-      />
+        <BaseInput
+          v-if="isRegistering"
+          v-model="lastName"
+          label="Apellido"
+          autocomplete="family-name"
+        />
 
-      <input v-model="email" type="email" placeholder="Email" />
+        <BaseInput
+          v-model="email"
+          label="Email"
+          type="email"
+          autocomplete="email"
+        />
 
-      <input v-model="password" type="password" placeholder="Contraseña" />
+        <BaseInput
+          v-model="password"
+          label="Contrasena"
+          type="password"
+          :autocomplete="isRegistering ? 'new-password' : 'current-password'"
+        />
 
-      <button @click="submit" :disabled="loading">
-        {{
-          loading
-            ? "Procesando..."
-            : isRegistering
+        <BaseButton type="submit" :loading="loading" block>
+          {{
+            isRegistering
               ? "Registrarme"
               : "Iniciar sesion"
-        }}
-      </button>
+          }}
+        </BaseButton>
+      </form>
 
-      <button class="link-btn" @click="toggleMode" :disabled="loading">
+      <BaseButton
+        variant="ghost"
+        :disabled="loading"
+        block
+        @click="toggleMode"
+      >
         {{
           isRegistering
             ? "Ya tengo cuenta"
             : "Crear cuenta"
         }}
-      </button>
+      </BaseButton>
 
       <p v-if="error" class="error">
         {{ error }}

@@ -1,7 +1,43 @@
 const prisma = require("../config/prisma");
+const AppError = require("../utils/app-error");
 const {
   buildPaginatedResponse
 } = require("../utils/pagination");
+
+const PRODUCT_PUBLIC_SELECT = {
+  id: true,
+  name: true,
+  description: true,
+  imageUrl: true,
+  price: true,
+  stock: true,
+  createdAt: true,
+};
+
+const buildProductOrderBy = (sort) => {
+  switch (sort) {
+    case "newest":
+      return {
+        createdAt: "desc",
+      };
+    case "price_asc":
+      return {
+        price: "asc",
+      };
+    case "price_desc":
+      return {
+        price: "desc",
+      };
+    case "name_asc":
+      return {
+        name: "asc",
+      };
+    default:
+      return {
+        id: "asc",
+      };
+  }
+};
 
 exports.createProduct = async (data) => {
   const product = await prisma.product.create({
@@ -16,18 +52,33 @@ exports.getProducts = async ({
   limit,
   skip,
   name,
+  search,
   minPrice,
   maxPrice,
+  inStock,
+  sort,
 }) => {
   const where = {
     isActive: true,
   };
 
-  if (name) {
-    where.name = {
-      contains: name,
-      mode: "insensitive",
-    };
+  const searchTerm = search || name;
+
+  if (searchTerm) {
+    where.OR = [
+      {
+        name: {
+          contains: searchTerm,
+          mode: "insensitive",
+        },
+      },
+      {
+        description: {
+          contains: searchTerm,
+          mode: "insensitive",
+        },
+      },
+    ];
   }
 
   if (minPrice !== undefined || maxPrice !== undefined) {
@@ -42,14 +93,21 @@ exports.getProducts = async ({
     }
   }
 
+  if (inStock !== undefined) {
+    where.stock = inStock
+      ? {
+          gt: 0,
+        }
+      : 0;
+  }
+
   const [products, total] = await prisma.$transaction([
     prisma.product.findMany({
       where,
       skip,
       take: limit,
-      orderBy: {
-        id: "asc",
-      },
+      orderBy: buildProductOrderBy(sort),
+      select: PRODUCT_PUBLIC_SELECT,
     }),
     prisma.product.count({
       where,
@@ -62,6 +120,22 @@ exports.getProducts = async ({
     page,
     limit,
   });
+};
+
+exports.getProductById = async (id) => {
+  const product = await prisma.product.findFirst({
+    where: {
+      id: Number(id),
+      isActive: true,
+    },
+    select: PRODUCT_PUBLIC_SELECT,
+  });
+
+  if (!product) {
+    throw new AppError(404, "PRODUCT_NOT_FOUND", "Producto no encontrado");
+  }
+
+  return product;
 };
 
 exports.deleteProduct = async (id) => {

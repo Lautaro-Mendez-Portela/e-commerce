@@ -39,4 +39,13 @@ router.patch(
   orderController.updateOrderStatus
 );
 
+router.get(
+  "/:id",
+  authMiddleware,
+  validate({
+    params: orderParamsSchema
+  }),
+  orderController.getMyOrderById
+);
+
 module.exports = router;

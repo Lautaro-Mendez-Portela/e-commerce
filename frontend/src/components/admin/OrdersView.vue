@@ -1,6 +1,10 @@
 <script setup>
 import { onMounted, ref, watch } from "vue";
 import PaginationControls from "./PaginationControls.vue";
+import BaseButton from "../ui/BaseButton.vue";
+import BaseInput from "../ui/BaseInput.vue";
+import BaseSelect from "../ui/BaseSelect.vue";
+import BaseSpinner from "../ui/BaseSpinner.vue";
 import { apiClient } from "../../services/apiClient";
 
 const orders = ref([]);
@@ -9,6 +13,20 @@ const errorMessage = ref("");
 const statusFilter = ref("ALL");
 const dateFrom = ref("");
 const dateTo = ref("");
+const statusOptions = [
+  {
+    value: "ALL",
+    label: "Todas",
+  },
+  {
+    value: "PENDING",
+    label: "Pendientes",
+  },
+  {
+    value: "PAID",
+    label: "Pagadas",
+  },
+];
 const pagination = ref({
   page: 1,
   limit: 10,
@@ -79,31 +97,42 @@ onMounted(() => {
   <section>
     <h3>Ordenes</h3>
 
-    <p v-if="loading">Cargando ordenes...</p>
+    <p v-if="loading" class="info-message cluster">
+      <BaseSpinner size="sm" />
+      Cargando ordenes...
+    </p>
 
-    <p v-if="errorMessage" style="color: red">
+    <p v-if="errorMessage" class="error">
       {{ errorMessage }}
     </p>
 
     <div v-if="!loading && !errorMessage">
       <div class="admin-actions">
-        <select v-model="statusFilter">
-          <option value="ALL">Todas</option>
-          <option value="PENDING">Pendientes</option>
-          <option value="PAID">Pagadas</option>
-        </select>
+        <BaseSelect
+          v-model="statusFilter"
+          label="Estado"
+          :options="statusOptions"
+        />
 
-        <input v-model="dateFrom" type="date" />
+        <BaseInput
+          v-model="dateFrom"
+          label="Desde"
+          type="date"
+        />
 
-        <input v-model="dateTo" type="date" />
+        <BaseInput
+          v-model="dateTo"
+          label="Hasta"
+          type="date"
+        />
 
-        <button class="filter-btn" @click="applyFilters">
+        <BaseButton @click="applyFilters">
           Filtrar
-        </button>
+        </BaseButton>
 
-        <button class="clear-btn" @click="clearFilters">
+        <BaseButton variant="secondary" @click="clearFilters">
           Limpiar
-        </button>
+        </BaseButton>
       </div>
 
       <p>Total ordenes: {{ pagination.total }}</p>

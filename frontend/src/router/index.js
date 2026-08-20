@@ -10,8 +10,14 @@ import OrdersAdminView from "../components/admin/OrdersView.vue";
 import ProductsAdminView from "../components/admin/ProductsView.vue";
 import UsersAdminView from "../components/admin/UsersView.vue";
 import { useAuthStore } from "../stores/authStore";
+import CartView from "../views/CartView.vue";
 import CatalogView from "../views/CatalogView.vue";
+import CheckoutCancelView from "../views/CheckoutCancelView.vue";
+import CheckoutSuccessView from "../views/CheckoutSuccessView.vue";
+import CheckoutView from "../views/CheckoutView.vue";
 import FavoritesView from "../views/FavoritesView.vue";
+import HomeView from "../views/HomeView.vue";
+import ProductDetailView from "../views/ProductDetailView.vue";
 import UserOrdersView from "../views/UserOrdersView.vue";
 
 const routes = [
@@ -21,23 +27,62 @@ const routes = [
     children: [
       {
         path: "",
-        redirect: { name: "products" },
+        name: "home",
+        component: HomeView,
+        meta: {
+          title: "Inicio | E-Commerce",
+        },
       },
       {
         path: "products",
         name: "products",
         component: CatalogView,
+        meta: {
+          title: "Productos | E-Commerce",
+        },
       },
       {
         path: "products/:id",
-        redirect: { name: "products" },
+        name: "product-detail",
+        component: ProductDetailView,
+        meta: {
+          title: "Producto | E-Commerce",
+        },
       },
       {
         path: "cart",
         name: "cart",
-        component: CatalogView,
+        component: CartView,
         meta: {
           requiresAuth: true,
+          title: "Carrito | E-Commerce",
+        },
+      },
+      {
+        path: "checkout",
+        name: "checkout",
+        component: CheckoutView,
+        meta: {
+          requiresAuth: true,
+          title: "Checkout | E-Commerce",
+        },
+      },
+      {
+        path: "checkout/success",
+        name: "checkout-success",
+        component: CheckoutSuccessView,
+        meta: {
+          requiresAuth: true,
+          title: "Compra confirmada | E-Commerce",
+        },
+      },
+      {
+        path: "checkout/cancel",
+        name: "checkout-cancel",
+        component: CheckoutCancelView,
+        meta: {
+          requiresAuth: true,
+          title: "Pago cancelado | E-Commerce",
         },
       },
       {
@@ -46,6 +91,7 @@ const routes = [
         component: FavoritesView,
         meta: {
           requiresAuth: true,
+          title: "Favoritos | E-Commerce",
         },
       },
       {
@@ -54,6 +100,7 @@ const routes = [
         component: ProfileView,
         meta: {
           requiresAuth: true,
+          title: "Mi perfil | E-Commerce",
         },
       },
       {
@@ -62,6 +109,7 @@ const routes = [
         component: UserOrdersView,
         meta: {
           requiresAuth: true,
+          title: "Mis ordenes | E-Commerce",
         },
       },
       {
@@ -70,6 +118,7 @@ const routes = [
         component: UserOrdersView,
         meta: {
           requiresAuth: true,
+          title: "Orden | E-Commerce",
         },
       },
       {
@@ -84,21 +133,33 @@ const routes = [
             path: "",
             name: "admin",
             component: DashboardView,
+            meta: {
+              title: "Admin | E-Commerce",
+            },
           },
           {
             path: "products",
             name: "admin-products",
             component: ProductsAdminView,
+            meta: {
+              title: "Admin productos | E-Commerce",
+            },
           },
           {
             path: "orders",
             name: "admin-orders",
             component: OrdersAdminView,
+            meta: {
+              title: "Admin ordenes | E-Commerce",
+            },
           },
           {
             path: "users",
             name: "admin-users",
             component: UsersAdminView,
+            meta: {
+              title: "Admin usuarios | E-Commerce",
+            },
           },
         ],
       },
@@ -109,6 +170,7 @@ const routes = [
     component: AuthLayout,
     meta: {
       guestOnly: true,
+      title: "Iniciar sesion | E-Commerce",
     },
     children: [
       {
@@ -126,6 +188,7 @@ const routes = [
     component: AuthLayout,
     meta: {
       guestOnly: true,
+      title: "Crear cuenta | E-Commerce",
     },
     children: [
       {
@@ -137,6 +200,20 @@ const routes = [
         },
       },
     ],
+  },
+  {
+    path: "/success",
+    redirect: (to) => ({
+      name: "checkout-success",
+      query: to.query,
+    }),
+  },
+  {
+    path: "/cancel",
+    redirect: (to) => ({
+      name: "checkout-cancel",
+      query: to.query,
+    }),
   },
   {
     path: "/:pathMatch(.*)*",
@@ -182,4 +259,12 @@ router.beforeEach(async (to) => {
   }
 
   return true;
+});
+
+router.afterEach((to) => {
+  const nearestTitle = [...to.matched]
+    .reverse()
+    .find((record) => record.meta.title)?.meta.title;
+
+  document.title = nearestTitle || "E-Commerce";
 });

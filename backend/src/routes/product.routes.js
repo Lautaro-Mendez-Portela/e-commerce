@@ -68,4 +68,12 @@ router.get(
   productController.getProducts
 );
 
+router.get(
+  "/:id",
+  validate({
+    params: productParamsSchema
+  }),
+  productController.getProductById
+);
+
 module.exports = router;

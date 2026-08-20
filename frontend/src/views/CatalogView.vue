@@ -1,274 +1,400 @@
 <script setup>
-import { computed, onMounted, ref } from "vue";
-import { storeToRefs } from "pinia";
+import { computed, nextTick, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import PaginationControls from "../components/admin/PaginationControls.vue";
-import { apiClient } from "../services/apiClient";
-import { useAuthStore } from "../stores/authStore";
-import { useCartStore } from "../stores/cartStore";
-import { useFavoritesStore } from "../stores/favoritesStore";
+import ProductCard from "../components/products/ProductCard.vue";
+import ProductCardSkeleton from "../components/products/ProductCardSkeleton.vue";
+import AppIcon from "../components/ui/AppIcon.vue";
+import BaseButton from "../components/ui/BaseButton.vue";
+import BaseInput from "../components/ui/BaseInput.vue";
+import BaseSelect from "../components/ui/BaseSelect.vue";
+import { productService } from "../services/productService";
 
 const route = useRoute();
 const router = useRouter();
-const authStore = useAuthStore();
-const cartStore = useCartStore();
-const favoritesStore = useFavoritesStore();
 
-const { isAuthenticated } = storeToRefs(authStore);
-const { items: cart, totalPrice, checkoutLoading } = storeToRefs(cartStore);
+const DEFAULT_SORT = "newest";
+const PRODUCT_LIMIT = 12;
+const SORT_VALUES = ["newest", "price_asc", "price_desc", "name_asc"];
+
+const sortOptions = [
+  {
+    value: "newest",
+    label: "Mas recientes",
+  },
+  {
+    value: "price_asc",
+    label: "Precio menor",
+  },
+  {
+    value: "price_desc",
+    label: "Precio mayor",
+  },
+  {
+    value: "name_asc",
+    label: "Nombre",
+  },
+];
+
+const availabilityOptions = [
+  {
+    value: "",
+    label: "Todos",
+  },
+  {
+    value: "true",
+    label: "Disponibles",
+  },
+  {
+    value: "false",
+    label: "Sin stock",
+  },
+];
 
 const products = ref([]);
+const filters = ref({
+  search: "",
+  minPrice: "",
+  maxPrice: "",
+  inStock: "",
+  sort: DEFAULT_SORT,
+});
 const loading = ref(false);
 const errorMessage = ref("");
-const actionMessage = ref("");
-const productPagination = ref({
+const isFiltersOpen = ref(false);
+const pagination = ref({
   page: 1,
-  limit: 10,
+  limit: PRODUCT_LIMIT,
   total: 0,
   totalPages: 1,
   hasNextPage: false,
   hasPreviousPage: false,
 });
 
-const cartItemsWithProducts = computed(() => {
-  return cart.value.filter((item) => item.product);
+let debounceTimer = null;
+let syncingFromRoute = false;
+
+const hasActiveFilters = computed(() => {
+  return Boolean(
+    filters.value.search ||
+    filters.value.minPrice ||
+    filters.value.maxPrice ||
+    filters.value.inStock ||
+    filters.value.sort !== DEFAULT_SORT
+  );
 });
 
-const redirectToLogin = () => {
-  router.push({
-    name: "login",
-    query: {
-      redirect: route.fullPath,
-    },
-  });
+const resultLabel = computed(() => {
+  const total = pagination.value.total;
+
+  if (total === 1) {
+    return "1 producto encontrado";
+  }
+
+  return `${total} productos encontrados`;
+});
+
+const normalizeRouteFilters = () => {
+  const sort = typeof route.query.sort === "string" &&
+    SORT_VALUES.includes(route.query.sort)
+    ? route.query.sort
+    : DEFAULT_SORT;
+
+  const inStock = route.query.inStock === "true" ||
+    route.query.inStock === "false"
+    ? route.query.inStock
+    : "";
+
+  return {
+    page: Math.max(Number(route.query.page) || 1, 1),
+    search: typeof route.query.search === "string" ? route.query.search : "",
+    minPrice: typeof route.query.minPrice === "string" ? route.query.minPrice : "",
+    maxPrice: typeof route.query.maxPrice === "string" ? route.query.maxPrice : "",
+    inStock,
+    sort,
+  };
 };
 
-const getProducts = async (page = productPagination.value.page) => {
+const buildQuery = (page = 1) => {
+  const query = {};
+
+  if (filters.value.search.trim()) {
+    query.search = filters.value.search.trim();
+  }
+
+  if (filters.value.minPrice !== "") {
+    query.minPrice = filters.value.minPrice;
+  }
+
+  if (filters.value.maxPrice !== "") {
+    query.maxPrice = filters.value.maxPrice;
+  }
+
+  if (filters.value.inStock !== "") {
+    query.inStock = filters.value.inStock;
+  }
+
+  if (filters.value.sort !== DEFAULT_SORT) {
+    query.sort = filters.value.sort;
+  }
+
+  if (page > 1) {
+    query.page = String(page);
+  }
+
+  return query;
+};
+
+const fetchProducts = async () => {
   try {
     loading.value = true;
     errorMessage.value = "";
 
-    const data = await apiClient.get("/products", {
-      auth: false,
-      query: {
-        page,
-        limit: productPagination.value.limit,
-      },
+    const response = await productService.getProducts({
+      page: pagination.value.page,
+      limit: PRODUCT_LIMIT,
+      search: filters.value.search.trim() || undefined,
+      minPrice: filters.value.minPrice || undefined,
+      maxPrice: filters.value.maxPrice || undefined,
+      inStock: filters.value.inStock || undefined,
+      sort: filters.value.sort,
     });
 
-    products.value = data.data;
-    productPagination.value = data.pagination;
+    products.value = response.data || [];
+    pagination.value = response.pagination;
   } catch (error) {
+    products.value = [];
     errorMessage.value = error.message;
   } finally {
     loading.value = false;
   }
 };
 
-const changeProductsPage = async (page) => {
-  await getProducts(page);
+const syncFromRoute = async () => {
+  const nextFilters = normalizeRouteFilters();
+
+  syncingFromRoute = true;
+  filters.value = {
+    search: nextFilters.search,
+    minPrice: nextFilters.minPrice,
+    maxPrice: nextFilters.maxPrice,
+    inStock: nextFilters.inStock,
+    sort: nextFilters.sort,
+  };
+  pagination.value.page = nextFilters.page;
+  await nextTick();
+  syncingFromRoute = false;
+
+  await fetchProducts();
 };
 
-const isFavorite = (productId) => {
-  return favoritesStore.isFavorite(productId);
+const replaceQuery = (page = 1) => {
+  router.push({
+    name: "products",
+    query: buildQuery(page),
+  });
 };
 
-const toggleFavorite = async (productId) => {
-  if (!isAuthenticated.value) {
-    redirectToLogin();
-    return;
-  }
-
-  try {
-    actionMessage.value = "";
-    await favoritesStore.toggleFavorite(productId);
-  } catch (error) {
-    actionMessage.value = error.message;
-  }
+const applyFilters = () => {
+  isFiltersOpen.value = false;
+  replaceQuery(1);
 };
 
-const addToCart = async (productId) => {
-  if (!isAuthenticated.value) {
-    redirectToLogin();
-    return;
-  }
+const clearFilters = () => {
+  filters.value = {
+    search: "",
+    minPrice: "",
+    maxPrice: "",
+    inStock: "",
+    sort: DEFAULT_SORT,
+  };
 
-  try {
-    actionMessage.value = "";
-    await cartStore.addItem(productId);
-  } catch (error) {
-    actionMessage.value = error.message;
-  }
+  router.push({
+    name: "products",
+    query: {},
+  });
 };
 
-const removeFromCart = async (cartItemId) => {
-  try {
-    actionMessage.value = "";
-    await cartStore.removeItem(cartItemId);
-  } catch (error) {
-    actionMessage.value = error.message;
-  }
+const changePage = (page) => {
+  replaceQuery(page);
 };
 
-const updateQuantity = async (cartItemId, quantity) => {
-  if (quantity < 1) {
-    return;
+watch(
+  () => route.query,
+  () => {
+    syncFromRoute();
+  },
+  {
+    immediate: true,
   }
+);
 
-  try {
-    actionMessage.value = "";
-    await cartStore.updateQuantity(cartItemId, quantity);
-  } catch (error) {
-    actionMessage.value = error.message;
-  }
-};
-
-const createOrder = async () => {
-  try {
-    actionMessage.value = "";
-
-    const session = await cartStore.createCheckoutSession();
-
-    if (session?.url) {
-      window.location.href = session.url;
+watch(
+  () => filters.value.search,
+  () => {
+    if (syncingFromRoute) {
+      return;
     }
-  } catch (error) {
-    actionMessage.value = error.message;
-  }
-};
 
-onMounted(async () => {
-  await getProducts();
-});
+    window.clearTimeout(debounceTimer);
+    debounceTimer = window.setTimeout(() => {
+      replaceQuery(1);
+    }, 350);
+  }
+);
+
+watch(
+  () => [
+    filters.value.minPrice,
+    filters.value.maxPrice,
+    filters.value.inStock,
+    filters.value.sort,
+  ],
+  () => {
+    if (syncingFromRoute) {
+      return;
+    }
+
+    replaceQuery(1);
+  }
+);
 </script>
 
 <template>
-  <main class="layout">
-    <section>
-      <h2 class="section-title">Productos</h2>
+  <main class="catalog-page page-shell">
+    <header class="catalog-header">
+      <div class="page-header">
+        <p class="eyebrow">Catalogo</p>
+        <h1>Explora productos</h1>
+        <p>
+          Busca, filtra y ordena productos con resultados reales desde el backend.
+        </p>
+      </div>
 
-      <p v-if="loading">Cargando productos...</p>
+      <div class="catalog-toolbar">
+        <p>{{ resultLabel }}</p>
 
-      <p v-if="errorMessage" class="error">
-        {{ errorMessage }}
-      </p>
+        <BaseSelect
+          v-model="filters.sort"
+          label="Ordenar"
+          :options="sortOptions"
+        />
 
-      <p v-if="actionMessage" class="error">
-        {{ actionMessage }}
-      </p>
-
-      <p>Total productos: {{ productPagination.total }}</p>
-
-      <div class="products-grid">
-        <div
-          v-for="product in products"
-          :key="product.id"
-          class="product-card"
+        <BaseButton
+          class="filters-toggle"
+          variant="outline"
+          @click="isFiltersOpen = true"
         >
-          <img
-            v-if="product.imageUrl"
-            :src="product.imageUrl"
-            :alt="product.name"
-            class="product-image"
-          />
+          <AppIcon name="filter" size="18" />
+          Filtros
+        </BaseButton>
+      </div>
+    </header>
 
-          <div v-else class="product-image">
-            Caja
-          </div>
+    <div
+      v-if="isFiltersOpen"
+      class="filters-backdrop"
+      @click="isFiltersOpen = false"
+    />
 
+    <section class="catalog-layout">
+      <aside class="filters-panel" :class="{ 'is-open': isFiltersOpen }">
+        <div class="filters-panel__header">
+          <h2>Filtros</h2>
           <button
-            :class="{ active: isFavorite(product.id) }"
-            class="favorite-btn"
-            :aria-label="isFavorite(product.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'"
-            @click="toggleFavorite(product.id)"
+            type="button"
+            class="filters-close"
+            aria-label="Cerrar filtros"
+            @click="isFiltersOpen = false"
           >
-            {{ isFavorite(product.id) ? "♥" : "♡" }}
-          </button>
-
-          <h3>
-            {{ product.name }}
-          </h3>
-
-          <p class="price">$ {{ product.price }}</p>
-
-          <p class="stock">
-            Stock:
-            {{ product.stock }}
-          </p>
-
-          <button class="primary-btn" @click="addToCart(product.id)">
-            Agregar al carrito
-          </button>
-        </div>
-      </div>
-
-      <PaginationControls
-        :pagination="productPagination"
-        @change-page="changeProductsPage"
-      />
-    </section>
-
-    <aside class="cart-section">
-      <h2 class="section-title">Carrito</h2>
-
-      <p v-if="!isAuthenticated" class="empty-cart">
-        Inicia sesion para usar el carrito
-      </p>
-
-      <p v-else-if="cartStore.loading">Cargando carrito...</p>
-
-      <p v-else-if="cartStore.error" class="error">
-        {{ cartStore.error }}
-      </p>
-
-      <div v-else-if="cart.length === 0" class="empty-cart">
-        El carrito esta vacio
-      </div>
-
-      <div
-        v-for="item in cartItemsWithProducts"
-        :key="item.id"
-        class="cart-item"
-      >
-        <div>
-          <h4>
-            {{ item.product.name }}
-          </h4>
-
-          <p>$ {{ item.product.price }}</p>
-        </div>
-
-        <div class="quantity-controls">
-          <button @click="updateQuantity(item.id, item.quantity - 1)">
-            -
-          </button>
-
-          <span>
-            {{ item.quantity }}
-          </span>
-
-          <button @click="updateQuantity(item.id, item.quantity + 1)">
-            +
+            <AppIcon name="close" />
           </button>
         </div>
 
-        <button class="remove-btn" @click="removeFromCart(item.id)">
-          Eliminar
-        </button>
-      </div>
+        <BaseInput
+          v-model="filters.search"
+          label="Buscar"
+          type="search"
+          placeholder="Nombre o descripcion"
+        />
 
-      <div v-if="isAuthenticated && cart.length > 0" class="cart-footer">
-        <h3>Total: $ {{ totalPrice.toFixed(2) }}</h3>
+        <BaseInput
+          v-model="filters.minPrice"
+          label="Precio minimo"
+          type="number"
+          min="0"
+        />
 
-        <button
-          class="checkout-btn"
-          :disabled="checkoutLoading"
-          @click="createOrder"
+        <BaseInput
+          v-model="filters.maxPrice"
+          label="Precio maximo"
+          type="number"
+          min="0"
+        />
+
+        <BaseSelect
+          v-model="filters.inStock"
+          label="Disponibilidad"
+          :options="availabilityOptions"
+        />
+
+        <div class="filters-panel__actions">
+          <BaseButton @click="applyFilters">
+            Aplicar filtros
+          </BaseButton>
+          <BaseButton
+            variant="secondary"
+            :disabled="!hasActiveFilters"
+            @click="clearFilters"
+          >
+            Limpiar
+          </BaseButton>
+        </div>
+      </aside>
+
+      <section class="catalog-results">
+        <p v-if="errorMessage" class="error">
+          {{ errorMessage }}
+        </p>
+
+        <div v-if="loading" class="products-grid">
+          <ProductCardSkeleton
+            v-for="index in 8"
+            :key="`catalog-skeleton-${index}`"
+          />
+        </div>
+
+        <section
+          v-else-if="!errorMessage && products.length === 0"
+          class="empty-state"
         >
-          {{ checkoutLoading ? "Preparando pago..." : "Crear orden" }}
-        </button>
-      </div>
-    </aside>
+          <AppIcon name="search" size="36" />
+          <h2>No encontramos productos</h2>
+          <p>Proba ajustar la busqueda o limpiar los filtros aplicados.</p>
+          <BaseButton
+            variant="outline"
+            :disabled="!hasActiveFilters"
+            @click="clearFilters"
+          >
+            Limpiar filtros
+          </BaseButton>
+        </section>
+
+        <div v-else class="products-grid">
+          <ProductCard
+            v-for="product in products"
+            :key="product.id"
+            :product="product"
+          />
+        </div>
+
+        <PaginationControls
+          v-if="!loading && !errorMessage && pagination.totalPages > 1"
+          :pagination="pagination"
+          @change-page="changePage"
+        />
+      </section>
+    </section>
   </main>
 </template>

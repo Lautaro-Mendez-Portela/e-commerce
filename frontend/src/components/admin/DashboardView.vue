@@ -1,5 +1,7 @@
 <script setup>
 import { onMounted, ref } from "vue";
+import BaseButton from "../ui/BaseButton.vue";
+import BaseSpinner from "../ui/BaseSpinner.vue";
 import { apiClient } from "../../services/apiClient";
 
 const dashboard = ref(null);
@@ -46,12 +48,15 @@ onMounted(() => {
     <div class="products-header">
       <h3>Dashboard</h3>
 
-      <button class="filter-btn" @click="getDashboard">
+      <BaseButton size="sm" @click="getDashboard">
         Actualizar
-      </button>
+      </BaseButton>
     </div>
 
-    <p v-if="loading">Cargando dashboard...</p>
+    <p v-if="loading" class="info-message cluster">
+      <BaseSpinner size="sm" />
+      Cargando dashboard...
+    </p>
 
     <p v-if="errorMessage" class="error">
       {{ errorMessage }}

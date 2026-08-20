@@ -1,4 +1,6 @@
 <script setup>
+import BaseButton from "../ui/BaseButton.vue";
+
 const props = defineProps({
   pagination: {
     type: Object,
@@ -23,22 +25,26 @@ const changePage = (page) => {
 
 <template>
   <div class="pagination-controls">
-    <button
+    <BaseButton
+      variant="secondary"
+      size="sm"
       :disabled="!pagination.hasPreviousPage"
       @click="changePage(pagination.page - 1)"
     >
       Anterior
-    </button>
+    </BaseButton>
 
     <span>
       Pagina {{ pagination.page }} de {{ pagination.totalPages }}
     </span>
 
-    <button
+    <BaseButton
+      variant="secondary"
+      size="sm"
       :disabled="!pagination.hasNextPage"
       @click="changePage(pagination.page + 1)"
     >
       Siguiente
-    </button>
+    </BaseButton>
   </div>
 </template>

@@ -27,8 +27,11 @@ exports.getProducts = async (req, res, next) => {
     const products = await productService.getProducts({
       ...pagination,
       name: req.query.name,
+      search: req.query.search,
       minPrice: req.query.minPrice,
       maxPrice: req.query.maxPrice,
+      inStock: req.query.inStock,
+      sort: req.query.sort,
     });
 
     res.json(products);
@@ -36,6 +39,16 @@ exports.getProducts = async (req, res, next) => {
   } catch (error) {
     next(error);
 
+  }
+};
+
+exports.getProductById = async (req, res, next) => {
+  try {
+    const product = await productService.getProductById(req.params.id);
+
+    res.json(product);
+  } catch (error) {
+    next(error);
   }
 };
 
