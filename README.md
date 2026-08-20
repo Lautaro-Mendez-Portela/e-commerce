@@ -151,6 +151,30 @@ Valida:
 
 El pipeline usa variables ficticias de test para JWT y Stripe. No requiere secretos reales ni archivos `.env`.
 
+## API Documentation
+
+La documentacion OpenAPI/Swagger queda disponible cuando el backend esta levantado:
+
+```text
+http://localhost:3000/api/docs
+http://localhost:3000/api/docs.json
+```
+
+Si el backend se levanta con otro puerto local, por ejemplo `3001`, reemplazar el puerto en esas URLs.
+
+Para probar endpoints autenticados desde Swagger UI:
+
+1. Ejecutar `POST /auth/login` con un usuario valido, por ejemplo el seed local `user@example.com` / `User123!`.
+2. Copiar el `accessToken`.
+3. Presionar `Authorize`.
+4. Pegar el token como Bearer JWT y confirmar.
+
+Los endpoints marcados como admin requieren un usuario con `role = ADMIN`, por ejemplo el seed local `admin@example.com` / `Admin123!`.
+
+El webhook de Stripe `POST /payments/webhook` no se expone como operacion interactiva porque consume raw body y requiere `Stripe-Signature`; la confirmacion real de pagos debe llegar desde Stripe.
+
+La ruta puede deshabilitarse con `API_DOCS_ENABLED=false` si mas adelante se decide protegerla o apagarla en produccion.
+
 ### Backend
 
 ```bash

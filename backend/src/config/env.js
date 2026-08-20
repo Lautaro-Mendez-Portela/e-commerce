@@ -45,4 +45,5 @@ module.exports = {
   jsonBodyLimit: process.env.JSON_BODY_LIMIT || "1mb",
   accessTokenExpiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN || "15m",
   refreshTokenExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || "7d",
+  apiDocsEnabled: process.env.API_DOCS_ENABLED !== "false",
 };

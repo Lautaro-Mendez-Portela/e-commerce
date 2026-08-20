@@ -37,6 +37,7 @@ services:
       CLIENT_URL: ${CLIENT_URL:-http://localhost:5173}
       API_URL: ${API_URL:-http://localhost:3000}
       JSON_BODY_LIMIT: ${JSON_BODY_LIMIT:-1mb}
+      API_DOCS_ENABLED: ${API_DOCS_ENABLED:-true}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_mock}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-whsec_mock}
     ports:
@@ -129,6 +130,7 @@ services:
       STRIPE_SECRET_KEY: sk_test_mock
       STRIPE_WEBHOOK_SECRET: whsec_test_mock
       JSON_BODY_LIMIT: 1mb
+      API_DOCS_ENABLED: true
       ACCESS_TOKEN_EXPIRES_IN: 15m
       REFRESH_TOKEN_EXPIRES_IN: 7d
     command: npm run docker:test:integration

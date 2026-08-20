@@ -21,6 +21,7 @@ const webhookRoutes = require("./routes/webhook.routes");
 const cartRoutes = require("./routes/cart.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
 const favoriteRoutes = require("./routes/favorite.routes");
+const docsRoutes = require("./docs/docs.routes");
 
 const app = express();
 
@@ -79,6 +80,10 @@ app.use("/payments", paymentRoutes);
 app.use("/cart", cartRoutes);
 app.use("/dashboard", dashboardRoutes);
 app.use("/favorites", favoriteRoutes);
+
+if (env.apiDocsEnabled) {
+  app.use("/api", docsRoutes);
+}
 
 app.use(notFoundHandler);
 app.use(errorHandler);
