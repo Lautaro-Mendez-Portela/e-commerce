@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const env = require("./config/env");
+const prisma = require("./config/prisma");
 const AppError = require("./utils/app-error");
 const {
   errorHandler,
@@ -37,6 +38,24 @@ app.use(cors({
   },
   credentials: true,
 }));
+
+app.get("/health", async (req, res, next) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+
+    res.json({
+      status: "ok",
+    });
+  } catch {
+    next(
+      new AppError(
+        503,
+        "HEALTHCHECK_FAILED",
+        "Servicio no disponible"
+      )
+    );
+  }
+});
 
 /*
   Webhook ANTES de express.json()

@@ -1,0 +1,13 @@
+node_modules/
+coverage/
+test-results/
+playwright-report/
+
+backend/coverage/
+frontend/coverage/
+
+.env
+.env.local
+.env.test
+.env.*.local
+*.log

@@ -35,6 +35,8 @@ const statusIndex = computed(() => {
   return steps.findIndex((step) => step.id === props.status);
 });
 
+const hasOperationalTimeline = computed(() => statusIndex.value >= 0);
+
 const visibleSteps = computed(() => {
   return steps.map((step, index) => {
     if (statusIndex.value < 0) {
@@ -82,7 +84,11 @@ const stateLabel = (state) => {
   <section class="order-timeline" aria-labelledby="order-timeline-title">
     <h2 id="order-timeline-title">Seguimiento</h2>
 
-    <ol>
+    <p v-if="!hasOperationalTimeline">
+      El seguimiento operativo no aplica para este estado.
+    </p>
+
+    <ol v-else>
       <li
         v-for="step in visibleSteps"
         :key="step.id"

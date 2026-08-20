@@ -101,6 +101,40 @@ VITE_API_URL="http://localhost:3000"
 
 ## Instalacion
 
+## Desarrollo con Docker
+
+El proyecto puede levantarse sin PostgreSQL instalado en el host:
+
+```bash
+docker compose up --build
+```
+
+Servicios:
+
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:3000`
+- Health backend: `http://localhost:3000/health`
+- PostgreSQL dev: `localhost:5432`
+
+Seed manual de desarrollo:
+
+```bash
+docker compose exec backend npm run db:seed
+```
+
+Credenciales demo:
+
+- Admin: `admin@example.com` / `Admin123!`
+- User: `user@example.com` / `User123!`
+
+Tests de integracion con PostgreSQL separado:
+
+```bash
+npm run docker:test
+```
+
+Documentacion completa: [docs/docker.md](docs/docker.md).
+
 ### Backend
 
 ```bash

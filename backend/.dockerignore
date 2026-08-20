@@ -1,0 +1,15 @@
+node_modules
+coverage
+dist
+.git
+logs
+*.log
+npm-debug.log*
+.env
+.env.*
+!.env.example
+!.env.test.example
+test-results
+playwright-report
+tmp
+temp
