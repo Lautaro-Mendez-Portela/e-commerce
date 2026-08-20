@@ -6,6 +6,8 @@ import DefaultLayout from "../layouts/DefaultLayout.vue";
 import LoginForm from "../components/LoginForm.vue";
 import ProfileView from "../components/ProfileView.vue";
 import DashboardView from "../components/admin/DashboardView.vue";
+import InventoryView from "../components/admin/InventoryView.vue";
+import OrderAdminDetailView from "../components/admin/OrderAdminDetailView.vue";
 import OrdersAdminView from "../components/admin/OrdersView.vue";
 import ProductsAdminView from "../components/admin/ProductsView.vue";
 import UsersAdminView from "../components/admin/UsersView.vue";
@@ -17,6 +19,7 @@ import CheckoutSuccessView from "../views/CheckoutSuccessView.vue";
 import CheckoutView from "../views/CheckoutView.vue";
 import FavoritesView from "../views/FavoritesView.vue";
 import HomeView from "../views/HomeView.vue";
+import OrderDetailView from "../views/OrderDetailView.vue";
 import ProductDetailView from "../views/ProductDetailView.vue";
 import UserOrdersView from "../views/UserOrdersView.vue";
 
@@ -115,7 +118,7 @@ const routes = [
       {
         path: "orders/:id",
         name: "order-detail",
-        component: UserOrdersView,
+        component: OrderDetailView,
         meta: {
           requiresAuth: true,
           title: "Orden | E-Commerce",
@@ -146,11 +149,27 @@ const routes = [
             },
           },
           {
+            path: "inventory",
+            name: "admin-inventory",
+            component: InventoryView,
+            meta: {
+              title: "Admin inventario | E-Commerce",
+            },
+          },
+          {
             path: "orders",
             name: "admin-orders",
             component: OrdersAdminView,
             meta: {
               title: "Admin ordenes | E-Commerce",
+            },
+          },
+          {
+            path: "orders/:id",
+            name: "admin-order-detail",
+            component: OrderAdminDetailView,
+            meta: {
+              title: "Admin orden | E-Commerce",
             },
           },
           {

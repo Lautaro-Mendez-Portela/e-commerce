@@ -13,10 +13,20 @@ const {
 const {
   adminOrdersQuerySchema,
   orderParamsSchema,
+  userOrdersQuerySchema,
   updateOrderStatusSchema
 } = require("../validators/order.validator");
 
 router.post("/", authMiddleware, orderController.createOrder);
+
+router.get(
+  "/my",
+  authMiddleware,
+  validate({
+    query: userOrdersQuerySchema
+  }),
+  orderController.getMyOrders
+);
 
 router.get(
   "/",
@@ -26,6 +36,16 @@ router.get(
     query: adminOrdersQuerySchema
   }),
   orderController.getAllOrders
+);
+
+router.get(
+  "/admin/:id",
+  authMiddleware,
+  roleMiddleware("ADMIN"),
+  validate({
+    params: orderParamsSchema
+  }),
+  orderController.getAdminOrderById
 );
 
 router.patch(

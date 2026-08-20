@@ -7,7 +7,12 @@ const AppError = require("../utils/app-error");
 exports.getUsers = async (req, res, next) => {
   try {
     const pagination = getPaginationParams(req.query);
-    const users = await userService.getUsers(pagination);
+    const users = await userService.getUsers({
+      ...pagination,
+      search: req.query.search,
+      role: req.query.role,
+      isActive: req.query.isActive,
+    });
 
     res.json(users);
   } catch (error) {
@@ -33,6 +38,19 @@ exports.getMyProfile = async (req, res, next) => {
   }
 };
 
+exports.changeMyPassword = async (req, res, next) => {
+  try {
+    const result = await userService.changePassword(
+      req.user.userId,
+      req.body
+    );
+
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.getUserProfile = async (req, res, next) => {
   try {
     const pagination = getPaginationParams(req.query);
@@ -51,6 +69,34 @@ exports.getUserProfile = async (req, res, next) => {
   }
 };
 
+exports.updateUserRole = async (req, res, next) => {
+  try {
+    const user = await userService.updateUserRole({
+      actorUserId: req.user.userId,
+      targetUserId: req.params.id,
+      role: req.body.role,
+    });
+
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.updateUserStatus = async (req, res, next) => {
+  try {
+    const user = await userService.updateUserStatus({
+      actorUserId: req.user.userId,
+      targetUserId: req.params.id,
+      isActive: req.body.isActive,
+    });
+
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.deleteUser = async (req, res, next) => {
   try {
     if (Number(req.params.id) === Number(req.user.userId)) {
@@ -61,7 +107,11 @@ exports.deleteUser = async (req, res, next) => {
       );
     }
 
-    await userService.deleteUser(req.params.id);
+    await userService.updateUserStatus({
+      actorUserId: req.user.userId,
+      targetUserId: req.params.id,
+      isActive: false,
+    });
 
     res.status(204).send();
   } catch (error) {

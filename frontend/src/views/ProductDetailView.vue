@@ -13,6 +13,7 @@ import { useAuthStore } from "../stores/authStore";
 import { useCartStore } from "../stores/cartStore";
 import { useFavoritesStore } from "../stores/favoritesStore";
 import { useFeedbackStore } from "../stores/feedbackStore";
+import { formatCurrency } from "../utils/formatters";
 
 const route = useRoute();
 const router = useRouter();
@@ -219,7 +220,7 @@ onMounted(() => {
 
           <p class="eyebrow">Producto</p>
           <h1>{{ product.name }}</h1>
-          <p class="product-detail__price">$ {{ product.price }}</p>
+          <p class="product-detail__price">{{ formatCurrency(product.price) }}</p>
           <p
             class="stock"
             :class="{

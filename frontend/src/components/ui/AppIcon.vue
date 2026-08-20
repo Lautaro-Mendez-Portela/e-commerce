@@ -69,8 +69,28 @@ defineProps({
       d="M20 12a8 8 0 0 1-13.7 5.7M4 12A8 8 0 0 1 17.7 6.3M18 3v4h-4M6 21v-4h4"
     />
     <path
+      v-else-if="name === 'dashboard'"
+      d="M4 13h6V4H4v9Zm10 7h6V4h-6v16ZM4 20h6v-3H4v3Z"
+    />
+    <path
+      v-else-if="name === 'chart'"
+      d="M4 19V5M4 19h16M8 16v-5M12 16V8M16 16v-8"
+    />
+    <path
+      v-else-if="name === 'edit'"
+      d="M4 20h4L19 9l-4-4L4 16v4ZM13 7l4 4"
+    />
+    <path
+      v-else-if="name === 'eye'"
+      d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6ZM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
+    />
+    <path
       v-else-if="name === 'user'"
       d="M20 20a8 8 0 0 0-16 0M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
+    />
+    <path
+      v-else-if="name === 'users'"
+      d="M16 20a6 6 0 0 0-12 0M10 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 20a5 5 0 0 0-5-5M17 11a3 3 0 0 0 0-6"
     />
     <path
       v-else-if="name === 'heart'"

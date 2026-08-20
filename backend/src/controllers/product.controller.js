@@ -52,6 +52,24 @@ exports.getProductById = async (req, res, next) => {
   }
 };
 
+exports.getAdminProducts = async (req, res, next) => {
+  try {
+    const pagination = getPaginationParams(req.query);
+
+    const products = await productService.getAdminProducts({
+      ...pagination,
+      search: req.query.search,
+      status: req.query.status,
+      stockFilter: req.query.stockFilter,
+      sort: req.query.sort,
+    });
+
+    res.json(products);
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.updateProduct = async (req, res, next) => {
   try {
     const product =
@@ -65,6 +83,19 @@ exports.updateProduct = async (req, res, next) => {
   } catch (error) {
     next(error);
 
+  }
+};
+
+exports.updateProductStock = async (req, res, next) => {
+  try {
+    const product = await productService.updateProductStock(
+      req.params.id,
+      req.body.stock
+    );
+
+    res.json(product);
+  } catch (error) {
+    next(error);
   }
 };
 

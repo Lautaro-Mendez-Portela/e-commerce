@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue";
 
 import AppIcon from "../ui/AppIcon.vue";
+import { formatCurrency } from "../../utils/formatters";
 
 const props = defineProps({
   item: {
@@ -68,8 +69,6 @@ const stockTone = computed(() => {
   return "warning";
 });
 
-const formatPrice = (value) => Number(value || 0).toFixed(2);
-
 watch(
   () => product.value?.imageUrl,
   () => {
@@ -121,7 +120,7 @@ watch(
       </h3>
 
       <p class="cart-line__price">
-        $ {{ formatPrice(unitPrice) }} unitario
+        {{ formatCurrency(unitPrice) }} unitario
       </p>
 
       <p
@@ -159,7 +158,7 @@ watch(
 
     <p class="cart-line__subtotal">
       <span>Subtotal</span>
-      <strong>$ {{ formatPrice(subtotal) }}</strong>
+      <strong>{{ formatCurrency(subtotal) }}</strong>
     </p>
 
     <button

@@ -14,6 +14,11 @@ const PRODUCT_PUBLIC_SELECT = {
   createdAt: true,
 };
 
+const PRODUCT_ADMIN_SELECT = {
+  ...PRODUCT_PUBLIC_SELECT,
+  isActive: true,
+};
+
 const buildProductOrderBy = (sort) => {
   switch (sort) {
     case "newest":
@@ -31,6 +36,14 @@ const buildProductOrderBy = (sort) => {
     case "name_asc":
       return {
         name: "asc",
+      };
+    case "stock_asc":
+      return {
+        stock: "asc",
+      };
+    case "stock_desc":
+      return {
+        stock: "desc",
       };
     default:
       return {
@@ -138,6 +151,74 @@ exports.getProductById = async (id) => {
   return product;
 };
 
+exports.getAdminProducts = async ({
+  page,
+  limit,
+  skip,
+  search,
+  status,
+  stockFilter,
+  sort,
+}) => {
+  const where = {};
+
+  if (status === "ACTIVE") {
+    where.isActive = true;
+  }
+
+  if (status === "INACTIVE") {
+    where.isActive = false;
+  }
+
+  if (search) {
+    where.OR = [
+      {
+        name: {
+          contains: search,
+          mode: "insensitive",
+        },
+      },
+      {
+        description: {
+          contains: search,
+          mode: "insensitive",
+        },
+      },
+    ];
+  }
+
+  if (stockFilter === "LOW") {
+    where.stock = {
+      gt: 0,
+      lte: 5,
+    };
+  }
+
+  if (stockFilter === "OUT") {
+    where.stock = 0;
+  }
+
+  const [products, total] = await prisma.$transaction([
+    prisma.product.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: buildProductOrderBy(sort),
+      select: PRODUCT_ADMIN_SELECT,
+    }),
+    prisma.product.count({
+      where,
+    }),
+  ]);
+
+  return buildPaginatedResponse({
+    data: products,
+    total,
+    page,
+    limit,
+  });
+};
+
 exports.deleteProduct = async (id) => {
   return await prisma.product.update({
     where: {
@@ -146,6 +227,28 @@ exports.deleteProduct = async (id) => {
     data: {
       isActive: false,
     },
+  });
+};
+
+exports.updateProductStock = async (id, stock) => {
+  const product = await prisma.product.findUnique({
+    where: {
+      id: Number(id),
+    },
+  });
+
+  if (!product) {
+    throw new AppError(404, "PRODUCT_NOT_FOUND", "Producto no encontrado");
+  }
+
+  return prisma.product.update({
+    where: {
+      id: product.id,
+    },
+    data: {
+      stock,
+    },
+    select: PRODUCT_ADMIN_SELECT,
   });
 };
 

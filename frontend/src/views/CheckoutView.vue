@@ -9,6 +9,7 @@ import BaseSkeleton from "../components/ui/BaseSkeleton.vue";
 import { useAuthStore } from "../stores/authStore";
 import { useCartStore } from "../stores/cartStore";
 import { useFeedbackStore } from "../stores/feedbackStore";
+import { formatCurrency } from "../utils/formatters";
 
 const authStore = useAuthStore();
 const cartStore = useCartStore();
@@ -35,8 +36,6 @@ const userFullName = computed(() => {
 
   return `${firstName} ${lastName}`.trim();
 });
-
-const formatPrice = (value) => Number(value || 0).toFixed(2);
 
 const startPayment = async () => {
   if (checkoutLoading.value) {
@@ -162,10 +161,10 @@ onMounted(() => {
 
               <div>
                 <h3>{{ item.product.name }}</h3>
-                <p>{{ item.quantity }} x $ {{ formatPrice(item.product.price) }}</p>
+                <p>{{ item.quantity }} x {{ formatCurrency(item.product.price) }}</p>
               </div>
 
-              <strong>$ {{ formatPrice(Number(item.product.price) * item.quantity) }}</strong>
+              <strong>{{ formatCurrency(Number(item.product.price) * item.quantity) }}</strong>
             </article>
           </div>
         </section>

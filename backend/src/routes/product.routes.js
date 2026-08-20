@@ -19,11 +19,34 @@ const {
 } = require("../middlewares/validation.middleware");
 
 const {
+  adminProductQuerySchema,
   createProductSchema,
   productParamsSchema,
   productQuerySchema,
+  updateProductStockSchema,
   updateProductSchema
 } = require("../validators/product.validator");
+
+router.get(
+  "/admin",
+  authMiddleware,
+  roleMiddleware("ADMIN"),
+  validate({
+    query: adminProductQuerySchema
+  }),
+  productController.getAdminProducts
+);
+
+router.patch(
+  "/:id/stock",
+  authMiddleware,
+  roleMiddleware("ADMIN"),
+  validate({
+    params: productParamsSchema,
+    body: updateProductStockSchema
+  }),
+  productController.updateProductStock
+);
 
 router.delete(
   "/:id",

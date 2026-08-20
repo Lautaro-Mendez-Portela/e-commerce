@@ -1,26 +1,31 @@
 <script setup>
-import { onMounted, ref } from "vue";
-import PaginationControls from "./PaginationControls.vue";
+import { onMounted, reactive, ref } from "vue";
+
+import AdminPageHeader from "./AdminPageHeader.vue";
+import AppIcon from "../ui/AppIcon.vue";
 import BaseButton from "../ui/BaseButton.vue";
-import BaseSpinner from "../ui/BaseSpinner.vue";
+import BaseInput from "../ui/BaseInput.vue";
+import BaseSelect from "../ui/BaseSelect.vue";
+import BaseSkeleton from "../ui/BaseSkeleton.vue";
+import ConfirmModal from "../ui/ConfirmModal.vue";
+import PaginationControls from "../ui/PaginationControls.vue";
 import { apiClient } from "../../services/apiClient";
 import { useFeedbackStore } from "../../stores/feedbackStore";
+import { formatDateTime } from "../../utils/formatters";
 
 const feedbackStore = useFeedbackStore();
 
 const users = ref([]);
-const selectedUser = ref(null);
 const loading = ref(false);
+const savingIds = ref(new Set());
 const errorMessage = ref("");
-const successMessage = ref("");
-const selectedUserOrdersPagination = ref({
-  page: 1,
-  limit: 10,
-  total: 0,
-  totalPages: 1,
-  hasNextPage: false,
-  hasPreviousPage: false,
+const userToToggle = ref(null);
+const filters = reactive({
+  search: "",
+  role: "ALL",
+  isActive: "ALL",
 });
+const roleInputs = reactive({});
 const pagination = ref({
   page: 1,
   limit: 10,
@@ -30,12 +35,41 @@ const pagination = ref({
   hasPreviousPage: false,
 });
 
-const getOrderTotal = (order) => {
-  if (!order.items) return 0;
+const roleOptions = [
+  { value: "ALL", label: "Todos" },
+  { value: "USER", label: "Clientes" },
+  { value: "ADMIN", label: "Administradores" },
+];
 
-  return order.items.reduce((total, item) => {
-    return total + item.quantity * Number(item.price);
-  }, 0);
+const editableRoleOptions = [
+  { value: "USER", label: "Cliente" },
+  { value: "ADMIN", label: "Admin" },
+];
+
+const activeOptions = [
+  { value: "ALL", label: "Todos" },
+  { value: "true", label: "Activos" },
+  { value: "false", label: "Inactivos" },
+];
+
+const setSaving = (id, saving) => {
+  const nextIds = new Set(savingIds.value);
+
+  if (saving) {
+    nextIds.add(id);
+  } else {
+    nextIds.delete(id);
+  }
+
+  savingIds.value = nextIds;
+};
+
+const isSaving = (id) => savingIds.value.has(id);
+
+const syncRoleInputs = () => {
+  users.value.forEach((user) => {
+    roleInputs[user.id] = user.role;
+  });
 };
 
 const getUsers = async (page = pagination.value.page) => {
@@ -47,11 +81,15 @@ const getUsers = async (page = pagination.value.page) => {
       query: {
         page,
         limit: pagination.value.limit,
+        search: filters.search.trim(),
+        role: filters.role,
+        isActive: filters.isActive === "ALL" ? undefined : filters.isActive,
       },
     });
 
-    users.value = data.data;
-    pagination.value = data.pagination;
+    users.value = data.data || [];
+    pagination.value = data.pagination || pagination.value;
+    syncRoleInputs();
   } catch (error) {
     errorMessage.value = error.message;
   } finally {
@@ -59,64 +97,73 @@ const getUsers = async (page = pagination.value.page) => {
   }
 };
 
-const changePage = async (page) => {
-  await getUsers(page);
-};
+const updateRole = async (user) => {
+  const nextRole = roleInputs[user.id];
 
-const viewProfile = async (
-  id,
-  page = selectedUserOrdersPagination.value.page
-) => {
+  if (!nextRole || nextRole === user.role) {
+    return;
+  }
+
   try {
-    errorMessage.value = "";
-
-    const data = await apiClient.get(`/users/${id}`, {
-      query: {
-        page,
-        limit: selectedUserOrdersPagination.value.limit,
-      },
+    setSaving(user.id, true);
+    await apiClient.patch(`/users/${user.id}/role`, {
+      role: nextRole,
     });
-
-    selectedUser.value = data;
-    selectedUserOrdersPagination.value = data.ordersPagination;
+    feedbackStore.success("Rol actualizado");
+    await getUsers(pagination.value.page);
   } catch (error) {
-    errorMessage.value = error.message;
+    roleInputs[user.id] = user.role;
+    feedbackStore.error(error.message);
+  } finally {
+    setSaving(user.id, false);
   }
 };
 
-const changeSelectedUserOrdersPage = async (page) => {
-  if (!selectedUser.value) return;
-
-  await viewProfile(selectedUser.value.id, page);
+const askToggleStatus = (user) => {
+  userToToggle.value = user;
 };
 
-const deleteUser = async (id) => {
-  const confirmed = confirm("Eliminar este usuario?");
+const toggleStatus = async () => {
+  if (!userToToggle.value) {
+    return;
+  }
 
-  if (!confirmed) return;
+  const targetUser = userToToggle.value;
 
   try {
-    errorMessage.value = "";
-    successMessage.value = "";
-
-    await apiClient.delete(`/users/${id}`);
-
-    if (selectedUser.value?.id === id) {
-      selectedUser.value = null;
-    }
-
-    const nextPage =
-      users.value.length === 1 && pagination.value.page > 1
-        ? pagination.value.page - 1
-        : pagination.value.page;
-
-    await getUsers(nextPage);
-    successMessage.value = "Usuario eliminado";
-    feedbackStore.success(successMessage.value);
+    setSaving(targetUser.id, true);
+    await apiClient.patch(`/users/${targetUser.id}/status`, {
+      isActive: !targetUser.isActive,
+    });
+    feedbackStore.success(targetUser.isActive ? "Usuario desactivado" : "Usuario reactivado");
+    userToToggle.value = null;
+    await getUsers(pagination.value.page);
   } catch (error) {
-    errorMessage.value = error.message;
     feedbackStore.error(error.message);
+  } finally {
+    setSaving(targetUser.id, false);
   }
+};
+
+const changePage = (page) => {
+  getUsers(page);
+};
+
+const applyFilters = () => {
+  getUsers(1);
+};
+
+const clearFilters = () => {
+  filters.search = "";
+  filters.role = "ALL";
+  filters.isActive = "ALL";
+  getUsers(1);
+};
+
+const userName = (user) => {
+  const name = `${user.firstName || ""} ${user.lastName || ""}`.trim();
+
+  return name || "Sin nombre";
 };
 
 onMounted(() => {
@@ -125,113 +172,132 @@ onMounted(() => {
 </script>
 
 <template>
-  <section>
-    <h3>Usuarios</h3>
-
-    <p v-if="loading" class="info-message cluster">
-      <BaseSpinner size="sm" />
-      Cargando usuarios...
-    </p>
+  <section class="admin-view">
+    <AdminPageHeader
+      title="Usuarios"
+      description="Administra roles y estado de acceso sin exponer datos sensibles."
+    />
 
     <p v-if="errorMessage" class="error">
       {{ errorMessage }}
     </p>
 
-    <p v-if="successMessage" class="success">
-      {{ successMessage }}
-    </p>
+    <section class="admin-filter-panel">
+      <BaseInput
+        v-model="filters.search"
+        label="Buscar"
+        placeholder="Nombre o email"
+      />
+      <BaseSelect v-model="filters.role" label="Rol" :options="roleOptions" />
+      <BaseSelect v-model="filters.isActive" label="Estado" :options="activeOptions" />
+      <BaseButton @click="applyFilters">Filtrar</BaseButton>
+      <BaseButton variant="secondary" @click="clearFilters">Limpiar</BaseButton>
+    </section>
 
-    <p>Total usuarios: {{ pagination.total }}</p>
+    <section v-if="loading" class="admin-card-list" aria-label="Cargando usuarios">
+      <BaseSkeleton
+        v-for="index in 4"
+        :key="`user-row-${index}`"
+        height="88px"
+        rounded="lg"
+      />
+    </section>
 
-    <div class="admin-list">
-      <div class="admin-header">
-        <span>ID</span>
-        <span>Nombre</span>
+    <section v-else-if="users.length === 0" class="empty-state">
+      <AppIcon name="users" size="42" />
+      <h2>No hay usuarios para este filtro</h2>
+      <p>Modifica la busqueda, el rol o el estado de cuenta.</p>
+      <BaseButton variant="outline" @click="clearFilters">
+        Limpiar filtros
+      </BaseButton>
+    </section>
+
+    <section v-else class="admin-resource-table" aria-label="Usuarios">
+      <div class="admin-resource-row admin-resource-row--header">
+        <span>Usuario</span>
         <span>Email</span>
         <span>Rol</span>
+        <span>Estado</span>
+        <span>Alta</span>
         <span>Acciones</span>
       </div>
 
-      <div
+      <article
         v-for="user in users"
         :key="user.id"
-        class="admin-row"
+        class="admin-resource-row"
       >
-        <span>{{ user.id }}</span>
-        <span>{{ user.firstName }} {{ user.lastName }}</span>
+        <div class="resource-product">
+          <span class="resource-product__placeholder">
+            <AppIcon name="user" size="22" />
+          </span>
+          <div>
+            <strong>{{ userName(user) }}</strong>
+            <span>#{{ user.id }}</span>
+          </div>
+        </div>
+
         <span>{{ user.email }}</span>
-        <span>{{ user.role }}</span>
 
-        <div class="actions">
+        <form class="admin-inline-form" @submit.prevent="updateRole(user)">
+          <BaseSelect
+            v-model="roleInputs[user.id]"
+            label="Rol"
+            :options="editableRoleOptions"
+            :disabled="isSaving(user.id) || !user.isActive"
+          />
           <BaseButton
+            type="submit"
+            size="sm"
             variant="outline"
-            size="sm"
-            @click="viewProfile(user.id, 1)"
+            :loading="isSaving(user.id)"
+            :disabled="roleInputs[user.id] === user.role || !user.isActive"
           >
-            Ver perfil
+            Guardar
           </BaseButton>
+        </form>
 
+        <span
+          class="resource-status"
+          :class="user.isActive ? 'resource-status--active' : 'resource-status--inactive'"
+        >
+          {{ user.isActive ? "Activo" : "Inactivo" }}
+        </span>
+
+        <span>{{ formatDateTime(user.createdAt) }}</span>
+
+        <div class="admin-row-actions">
           <BaseButton
-            variant="danger"
+            :variant="user.isActive ? 'danger' : 'outline'"
             size="sm"
-            @click="deleteUser(user.id)"
+            :loading="isSaving(user.id)"
+            @click="askToggleStatus(user)"
           >
-            Eliminar
+            {{ user.isActive ? "Desactivar" : "Reactivar" }}
           </BaseButton>
         </div>
-      </div>
-    </div>
+      </article>
+    </section>
 
     <PaginationControls
+      v-if="pagination.total > 0"
       :pagination="pagination"
       @change-page="changePage"
     />
 
-    <div v-if="selectedUser" class="profile-card admin-user-profile">
-      <div class="products-header">
-        <h3>Perfil de usuario</h3>
-
-        <BaseButton variant="secondary" size="sm" @click="selectedUser = null">
-          Cerrar
-        </BaseButton>
-      </div>
-
-      <p><strong>Nombre:</strong> {{ selectedUser.firstName }}</p>
-      <p><strong>Apellido:</strong> {{ selectedUser.lastName }}</p>
-      <p><strong>Email:</strong> {{ selectedUser.email }}</p>
-      <p><strong>Rol:</strong> {{ selectedUser.role }}</p>
-
-      <h4>Historial de compras</h4>
-
-      <p v-if="selectedUser.orders.length === 0" class="empty-cart">
-        Sin compras registradas
-      </p>
-
-      <div v-else class="admin-list">
-        <div class="admin-row admin-header">
-          <span>ID</span>
-          <span>Estado</span>
-          <span>Total</span>
-          <span>Fecha</span>
-        </div>
-
-        <div
-          v-for="order in selectedUser.orders"
-          :key="order.id"
-          class="admin-row"
-        >
-          <span>{{ order.id }}</span>
-          <span>{{ order.status }}</span>
-          <span>${{ getOrderTotal(order).toFixed(2) }}</span>
-          <span>{{ new Date(order.createdAt).toLocaleDateString() }}</span>
-        </div>
-      </div>
-
-      <PaginationControls
-        v-if="selectedUserOrdersPagination.total > 0"
-        :pagination="selectedUserOrdersPagination"
-        @change-page="changeSelectedUserOrdersPage"
-      />
-    </div>
+    <ConfirmModal
+      :model-value="Boolean(userToToggle)"
+      :title="userToToggle?.isActive ? 'Desactivar usuario' : 'Reactivar usuario'"
+      :message="userToToggle?.isActive
+        ? `El usuario ${userToToggle?.email || ''} no podra operar hasta ser reactivado.`
+        : `El usuario ${userToToggle?.email || ''} recuperara acceso.`
+      "
+      :confirm-label="userToToggle?.isActive ? 'Desactivar' : 'Reactivar'"
+      :danger="Boolean(userToToggle?.isActive)"
+      :loading="Boolean(userToToggle && isSaving(userToToggle.id))"
+      @update:model-value="userToToggle = $event ? userToToggle : null"
+      @confirm="toggleStatus"
+      @cancel="userToToggle = null"
+    />
   </section>
 </template>

@@ -8,6 +8,7 @@ import BaseButton from "../ui/BaseButton.vue";
 import BaseSkeleton from "../ui/BaseSkeleton.vue";
 import { useCartStore } from "../../stores/cartStore";
 import { useFeedbackStore } from "../../stores/feedbackStore";
+import { formatCurrency } from "../../utils/formatters";
 
 const cartStore = useCartStore();
 const feedbackStore = useFeedbackStore();
@@ -27,7 +28,7 @@ const cartItemsWithProducts = computed(() => {
 });
 
 const hasItems = computed(() => cartItemsWithProducts.value.length > 0);
-const formattedTotal = computed(() => Number(totalPrice.value || 0).toFixed(2));
+const formattedTotal = computed(() => formatCurrency(totalPrice.value));
 
 const close = () => {
   cartStore.closeMiniCart();
@@ -175,7 +176,7 @@ onBeforeUnmount(() => {
         <footer v-if="hasItems" class="mini-cart__footer">
           <div class="mini-cart__total">
             <span>Subtotal</span>
-            <strong>$ {{ formattedTotal }}</strong>
+            <strong>{{ formattedTotal }}</strong>
           </div>
 
           <div class="mini-cart__actions">

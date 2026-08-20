@@ -88,6 +88,15 @@ export const useAuthStore = defineStore("auth", () => {
     return fetchCurrentUser();
   };
 
+  const changePassword = async ({ currentPassword, newPassword }) => {
+    error.value = "";
+
+    return apiClient.patch("/users/me/password", {
+      currentPassword,
+      newPassword,
+    });
+  };
+
   const initializeSession = async () => {
     if (initialized.value) {
       return user.value;
@@ -141,6 +150,7 @@ export const useAuthStore = defineStore("auth", () => {
     isAdmin,
     login,
     register,
+    changePassword,
     logout,
     clearSession,
     refreshSession,

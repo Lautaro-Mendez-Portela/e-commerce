@@ -19,6 +19,7 @@ const orderStatusSchema = z.enum([
 exports.adminOrdersQuerySchema = z.object({
   page: optionalPositiveIntegerQuery,
   limit: optionalPositiveIntegerQuery,
+  q: z.string().trim().min(1).max(120).optional(),
   status: z.enum([
     "ALL",
     "PENDING",
@@ -42,6 +43,17 @@ exports.adminOrdersQuerySchema = z.object({
   message: "dateFrom no puede ser posterior a dateTo",
   path: ["dateFrom"],
 });
+
+exports.userOrdersQuerySchema = z.object({
+  page: optionalPositiveIntegerQuery,
+  limit: optionalPositiveIntegerQuery,
+  statusGroup: z.enum([
+    "ALL",
+    "IN_PROGRESS",
+    "DELIVERED",
+    "CANCELLED",
+  ]).optional(),
+}).strict();
 
 exports.orderParamsSchema = idParamSchema;
 

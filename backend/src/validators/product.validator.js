@@ -10,7 +10,7 @@ const {
 const productFieldsSchema = z.object({
   name: z.string().trim().min(3).max(120),
   description: z.string().trim().min(5).max(2000),
-  imageUrl: z.string().max(1_000_000).optional().or(z.literal("")),
+  imageUrl: z.string().trim().url().max(1000).optional().or(z.literal("")),
   price: positiveNumber,
   stock: nonNegativeInteger,
 }).strict();
@@ -63,3 +63,23 @@ exports.productQuerySchema = z.object({
   message: "minPrice no puede ser mayor que maxPrice",
   path: ["minPrice"],
 });
+
+exports.adminProductQuerySchema = z.object({
+  page: optionalPositiveIntegerQuery,
+  limit: optionalPositiveIntegerQuery,
+  search: z.string().trim().min(1).max(120).optional(),
+  status: z.enum(["ALL", "ACTIVE", "INACTIVE"]).optional(),
+  stockFilter: z.enum(["ALL", "LOW", "OUT"]).optional(),
+  sort: z.enum([
+    "newest",
+    "name_asc",
+    "price_asc",
+    "price_desc",
+    "stock_asc",
+    "stock_desc",
+  ]).optional(),
+}).strict();
+
+exports.updateProductStockSchema = z.object({
+  stock: nonNegativeInteger,
+}).strict();

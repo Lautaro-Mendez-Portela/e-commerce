@@ -1,106 +1,70 @@
 <script setup>
-import { onMounted, ref } from "vue";
+import { computed, onMounted } from "vue";
 import { storeToRefs } from "pinia";
 
+import AccountLayout from "../components/account/AccountLayout.vue";
+import ProductCard from "../components/products/ProductCard.vue";
+import ProductCardSkeleton from "../components/products/ProductCardSkeleton.vue";
 import AppIcon from "../components/ui/AppIcon.vue";
 import BaseButton from "../components/ui/BaseButton.vue";
-import BaseCard from "../components/ui/BaseCard.vue";
-import BaseSpinner from "../components/ui/BaseSpinner.vue";
-import { useCartStore } from "../stores/cartStore";
 import { useFeedbackStore } from "../stores/feedbackStore";
 import { useFavoritesStore } from "../stores/favoritesStore";
 
-const cartStore = useCartStore();
 const feedbackStore = useFeedbackStore();
 const favoritesStore = useFavoritesStore();
 const { items: favorites, loading, error } = storeToRefs(favoritesStore);
 
-const actionMessage = ref("");
+const favoriteProducts = computed(() => {
+  return favorites.value
+    .map((favorite) => favorite.product)
+    .filter(Boolean);
+});
 
-const toggleFavorite = async (productId) => {
+const loadFavorites = async () => {
   try {
-    actionMessage.value = "";
-    await favoritesStore.toggleFavorite(productId);
+    await favoritesStore.loadFavorites();
   } catch (err) {
-    actionMessage.value = err.message;
     feedbackStore.error(err.message);
   }
 };
 
-const addToCart = async (productId) => {
-  try {
-    actionMessage.value = "";
-    await cartStore.addItem(productId);
-    cartStore.openMiniCart();
-    feedbackStore.success("Producto agregado al carrito");
-  } catch (err) {
-    actionMessage.value = err.message;
-    feedbackStore.error(err.message);
-  }
-};
-
-onMounted(async () => {
-  if (favorites.value.length === 0) {
-    await favoritesStore.loadFavorites().catch(() => {});
-  }
+onMounted(() => {
+  loadFavorites();
 });
 </script>
 
 <template>
-  <main class="favorites-section">
-    <header class="page-header">
-      <h1>Favoritos</h1>
-      <p>Productos guardados para volver a comprar mas rapido.</p>
-    </header>
+  <AccountLayout>
+    <section class="account-stack">
+      <p v-if="error" class="error">
+        No pudimos cargar tus favoritos.
+      </p>
 
-    <p v-if="loading" class="info-message cluster">
-      <BaseSpinner size="sm" />
-      Cargando favoritos...
-    </p>
-
-    <p v-if="error || actionMessage" class="error">
-      {{ error || actionMessage }}
-    </p>
-
-    <p v-if="!loading && favorites.length === 0" class="empty-cart">
-      Todavia no agregaste productos a favoritos
-    </p>
-
-    <div v-if="!loading && favorites.length > 0" class="products-grid">
-      <BaseCard
-        v-for="favorite in favorites"
-        :key="favorite.id"
-        class="product-card"
-      >
-        <img
-          v-if="favorite.product.imageUrl"
-          :src="favorite.product.imageUrl"
-          :alt="favorite.product.name"
-          class="product-image"
+      <div v-if="loading" class="products-grid" aria-label="Cargando favoritos">
+        <ProductCardSkeleton
+          v-for="index in 4"
+          :key="`favorite-skeleton-${index}`"
         />
+      </div>
 
-        <div v-else class="product-image">
-          <AppIcon name="package" size="42" />
-        </div>
+      <section v-else-if="favoriteProducts.length === 0" class="empty-state">
+        <AppIcon name="heart" size="42" />
+        <h2>Todavia no guardaste favoritos</h2>
+        <p>Guarda productos para encontrarlos mas rapido cuando vuelvas.</p>
+        <RouterLink :to="{ name: 'products' }">
+          <BaseButton>
+            Ver productos
+          </BaseButton>
+        </RouterLink>
+      </section>
 
-        <button
-          class="favorite-btn active"
-          aria-label="Quitar de favoritos"
-          @click="toggleFavorite(favorite.productId)"
-        >
-          <AppIcon name="heart" size="20" />
-        </button>
-
-        <h3>{{ favorite.product.name }}</h3>
-
-        <p class="price">$ {{ favorite.product.price }}</p>
-
-        <p class="stock">Stock: {{ favorite.product.stock }}</p>
-
-        <BaseButton block @click="addToCart(favorite.productId)">
-          Agregar al carrito
-        </BaseButton>
-      </BaseCard>
-    </div>
-  </main>
+      <div v-else class="products-grid">
+        <ProductCard
+          v-for="product in favoriteProducts"
+          :key="product.id"
+          :product="product"
+        />
+      </div>
+    </section>
+  </AccountLayout>
 </template>

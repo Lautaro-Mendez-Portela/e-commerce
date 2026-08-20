@@ -3,6 +3,7 @@ import { computed } from "vue";
 
 import AppIcon from "../ui/AppIcon.vue";
 import BaseButton from "../ui/BaseButton.vue";
+import { formatCurrency } from "../../utils/formatters";
 
 const props = defineProps({
   subtotal: {
@@ -45,7 +46,7 @@ const props = defineProps({
 
 const emit = defineEmits(["primary"]);
 
-const formattedSubtotal = computed(() => Number(props.subtotal || 0).toFixed(2));
+const formattedSubtotal = computed(() => formatCurrency(props.subtotal));
 const itemLabel = computed(() => {
   return props.itemCount === 1 ? "1 producto" : `${props.itemCount} productos`;
 });
@@ -61,11 +62,11 @@ const itemLabel = computed(() => {
     <dl class="order-summary__totals">
       <div>
         <dt>Subtotal</dt>
-        <dd>$ {{ formattedSubtotal }}</dd>
+        <dd>{{ formattedSubtotal }}</dd>
       </div>
       <div class="order-summary__total">
         <dt>Total</dt>
-        <dd>$ {{ formattedSubtotal }}</dd>
+        <dd>{{ formattedSubtotal }}</dd>
       </div>
     </dl>
 

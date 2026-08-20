@@ -26,17 +26,43 @@ exports.getMyOrderById = async (req, res, next) => {
   }
 };
 
+exports.getMyOrders = async (req, res, next) => {
+  try {
+    const pagination = getPaginationParams(req.query);
+    const orders = await orderService.getOrdersByUser({
+      ...pagination,
+      userId: req.user.userId,
+      statusGroup: req.query.statusGroup,
+    });
+
+    res.json(orders);
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.getAllOrders = async (req, res, next) => {
   try {
     const pagination = getPaginationParams(req.query);
     const orders = await orderService.getAllOrders({
       ...pagination,
+      q: req.query.q,
       status: req.query.status,
       dateFrom: req.query.dateFrom,
       dateTo: req.query.dateTo,
     });
 
     res.json(orders);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getAdminOrderById = async (req, res, next) => {
+  try {
+    const order = await orderService.getOrderByIdForAdmin(req.params.id);
+
+    res.json(order);
   } catch (error) {
     next(error);
   }

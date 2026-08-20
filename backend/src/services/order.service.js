@@ -13,6 +13,81 @@ const {
   buildPaginatedResponse
 } = require("../utils/pagination");
 
+const USER_ORDER_STATUS_GROUPS = {
+  IN_PROGRESS: [
+    ORDER_STATUS.PENDING,
+    ORDER_STATUS.PAID,
+    ORDER_STATUS.PROCESSING,
+    ORDER_STATUS.SHIPPED,
+  ],
+  DELIVERED: [
+    ORDER_STATUS.DELIVERED,
+  ],
+  CANCELLED: [
+    ORDER_STATUS.CANCELLED,
+    ORDER_STATUS.FAILED,
+    ORDER_STATUS.REFUNDED,
+  ],
+};
+
+const USER_ORDER_ITEM_INCLUDE = {
+  orderBy: {
+    id: "asc",
+  },
+  include: {
+    product: {
+      select: {
+        id: true,
+        name: true,
+        imageUrl: true,
+        stock: true,
+        isActive: true,
+      },
+    },
+  },
+};
+
+const ADMIN_ORDER_ITEM_SELECT = {
+  id: true,
+  productId: true,
+  productName: true,
+  quantity: true,
+  price: true,
+  subtotal: true,
+  product: {
+    select: {
+      id: true,
+      name: true,
+      imageUrl: true,
+      isActive: true,
+    },
+  },
+};
+
+const ADMIN_ORDER_SELECT = {
+  id: true,
+  status: true,
+  total: true,
+  createdAt: true,
+  updatedAt: true,
+  paidAt: true,
+  cancelledAt: true,
+  refundedAt: true,
+  user: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+    },
+  },
+  items: {
+    orderBy: {
+      id: "asc",
+    },
+    select: ADMIN_ORDER_ITEM_SELECT,
+  },
+};
 
 exports.createOrder = async (userId) => {
   return await prisma.$transaction(async (tx) => {
@@ -103,22 +178,7 @@ exports.getOrderByIdForUser = async (orderId, userId) => {
       userId: Number(userId),
     },
     include: {
-      items: {
-        orderBy: {
-          id: "asc",
-        },
-        include: {
-          product: {
-            select: {
-              id: true,
-              name: true,
-              imageUrl: true,
-              stock: true,
-              isActive: true,
-            },
-          },
-        },
-      },
+      items: USER_ORDER_ITEM_INCLUDE,
     },
   });
 
@@ -133,6 +193,7 @@ exports.getAllOrders = async ({
   page,
   limit,
   skip,
+  q,
   status,
   dateFrom,
   dateTo,
@@ -142,6 +203,45 @@ exports.getAllOrders = async ({
         status,
       }
     : {};
+
+  if (q) {
+    const search = q.trim();
+    const searchId = Number(search);
+
+    where.OR = [
+      ...(Number.isInteger(searchId) && searchId > 0
+        ? [
+            {
+              id: searchId,
+            },
+          ]
+        : []),
+      {
+        user: {
+          email: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+      },
+      {
+        user: {
+          firstName: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+      },
+      {
+        user: {
+          lastName: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+      },
+    ];
+  }
 
   if (dateFrom || dateTo) {
     where.createdAt = {};
@@ -160,21 +260,7 @@ exports.getAllOrders = async ({
       where,
       skip,
       take: limit,
-      include: {
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-        items: {
-          include: {
-            product: true,
-          },
-        },
-      },
+      select: ADMIN_ORDER_SELECT,
       orderBy: {
         createdAt: "desc",
       },
@@ -190,6 +276,21 @@ exports.getAllOrders = async ({
     page,
     limit,
   });
+};
+
+exports.getOrderByIdForAdmin = async (orderId) => {
+  const order = await prisma.order.findUnique({
+    where: {
+      id: Number(orderId),
+    },
+    select: ADMIN_ORDER_SELECT,
+  });
+
+  if (!order) {
+    throw new AppError(404, "ORDER_NOT_FOUND", "Orden no encontrada");
+  }
+
+  return order;
 };
 
 exports.updateOrderStatus = async (orderId, nextStatus) => {
@@ -218,17 +319,57 @@ exports.updateOrderStatus = async (orderId, nextStatus) => {
   });
 };
 
-exports.getOrdersByUser = async (userId) => {
-  return await prisma.order.findMany({
+exports.getOrdersByUser = async ({
+  userId,
+  page,
+  limit,
+  skip,
+  statusGroup,
+}) => {
+  const where = {
+    userId: Number(userId),
+  };
+
+  const statuses = USER_ORDER_STATUS_GROUPS[statusGroup];
+
+  if (statuses) {
+    where.status = {
+      in: statuses,
+    };
+  }
+
+  const [orders, total] = await prisma.$transaction([
+    prisma.order.findMany({
+      where,
+      skip,
+      take: limit,
+      include: {
+        items: USER_ORDER_ITEM_INCLUDE,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    }),
+    prisma.order.count({
+      where,
+    }),
+  ]);
+
+  return buildPaginatedResponse({
+    data: orders,
+    total,
+    page,
+    limit,
+  });
+};
+
+exports.getAllOrdersByUser = async (userId) => {
+  return prisma.order.findMany({
     where: {
       userId: Number(userId),
     },
     include: {
-      items: {
-        include: {
-          product: true,
-        },
-      },
+      items: USER_ORDER_ITEM_INCLUDE,
     },
     orderBy: {
       createdAt: "desc",

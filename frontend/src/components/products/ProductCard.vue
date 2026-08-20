@@ -10,6 +10,7 @@ import { useAuthStore } from "../../stores/authStore";
 import { useCartStore } from "../../stores/cartStore";
 import { useFavoritesStore } from "../../stores/favoritesStore";
 import { useFeedbackStore } from "../../stores/feedbackStore";
+import { formatCurrency } from "../../utils/formatters";
 
 const props = defineProps({
   product: {
@@ -159,7 +160,7 @@ const toggleFavorite = async () => {
         <h3>{{ product.name }}</h3>
       </RouterLink>
 
-      <p class="price">$ {{ product.price }}</p>
+      <p class="price">{{ formatCurrency(product.price) }}</p>
 
       <p class="stock" :class="`stock--${availabilityTone}`">
         {{ availabilityLabel }}

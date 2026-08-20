@@ -8,6 +8,7 @@ import BaseSkeleton from "../components/ui/BaseSkeleton.vue";
 import BaseSpinner from "../components/ui/BaseSpinner.vue";
 import { orderService } from "../services/orderService";
 import { useCartStore } from "../stores/cartStore";
+import { formatCurrency } from "../utils/formatters";
 
 const route = useRoute();
 const cartStore = useCartStore();
@@ -42,7 +43,7 @@ const hasValidOrderId = computed(() => {
 
 const orderItems = computed(() => order.value?.items || []);
 const orderTotal = computed(() => Number(order.value?.total || 0));
-const formattedTotal = computed(() => orderTotal.value.toFixed(2));
+const formattedTotal = computed(() => formatCurrency(orderTotal.value));
 
 const confirmedStatuses = new Set([
   "PAID",
@@ -126,8 +127,6 @@ const statusContent = computed(() => {
       : "Stripe redirigio correctamente, pero el webhook puede tardar unos segundos.",
   };
 });
-
-const formatPrice = (value) => Number(value || 0).toFixed(2);
 
 const refreshCartWhenConfirmed = async (status) => {
   if (!confirmedStatuses.has(status) || cartRefreshed.value) {
@@ -316,17 +315,17 @@ onBeforeUnmount(() => {
 
               <div>
                 <h3>{{ item.productName || item.product?.name }}</h3>
-                <p>{{ item.quantity }} x $ {{ formatPrice(item.price) }}</p>
+                <p>{{ item.quantity }} x {{ formatCurrency(item.price) }}</p>
               </div>
 
-              <strong>$ {{ formatPrice(item.subtotal) }}</strong>
+              <strong>{{ formatCurrency(item.subtotal) }}</strong>
             </article>
           </div>
         </div>
 
         <div class="checkout-total-row">
           <span>Total</span>
-          <strong>$ {{ formattedTotal }}</strong>
+          <strong>{{ formattedTotal }}</strong>
         </div>
       </section>
     </template>
