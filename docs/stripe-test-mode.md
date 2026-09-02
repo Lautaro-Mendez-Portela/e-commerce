@@ -34,3 +34,13 @@ Esta prueba no forma parte de la suite automatizada normal. Sirve para validar l
 - Sin doble procesamiento por eventos repetidos.
 - Sin refund duplicado.
 - No exponer ni commitear secretos.
+
+## Produccion
+
+Despues del deploy no se usa el forwarder local. Hay que configurar manualmente en Stripe Dashboard:
+
+```text
+https://BACKEND_DOMAIN/payments/webhook
+```
+
+Luego copiar el nuevo signing secret en `STRIPE_WEBHOOK_SECRET`.

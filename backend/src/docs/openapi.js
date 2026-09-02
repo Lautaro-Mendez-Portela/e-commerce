@@ -1,6 +1,7 @@
 const env = require("../config/env");
 
-const apiServerUrl = env.apiUrl || `http://localhost:${env.port}`;
+const apiServerUrl = env.apiUrl ||
+  (env.isProduction ? undefined : `http://localhost:${env.port}`);
 
 const decimal = {
   type: "string",
@@ -133,12 +134,14 @@ module.exports = {
       "El webhook Stripe real es `POST /payments/webhook`, consume raw body y requiere header `Stripe-Signature`; se documenta aqui textualmente y no se expone como operacion interactiva porque no esta pensado para uso manual desde Swagger UI.",
     ].join("\n"),
   },
-  servers: [
-    {
-      url: apiServerUrl,
-      description: "Entorno local/configurado por API_URL",
-    },
-  ],
+  servers: apiServerUrl
+    ? [
+        {
+          url: apiServerUrl,
+          description: "Entorno local/configurado por API_URL",
+        },
+      ]
+    : [],
   tags: [
     {
       name: "Health",

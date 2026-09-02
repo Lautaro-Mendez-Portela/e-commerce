@@ -83,6 +83,7 @@ jobs:
       STRIPE_SECRET_KEY: sk_test_mock
       STRIPE_WEBHOOK_SECRET: whsec_test_mock
       JSON_BODY_LIMIT: 1mb
+      API_DOCS_ENABLED: "true"
       ACCESS_TOKEN_EXPIRES_IN: 15m
       REFRESH_TOKEN_EXPIRES_IN: 7d
 
@@ -226,3 +227,8 @@ jobs:
 
       - name: Build Docker images
         run: docker compose build backend frontend
+
+      - name: Build production Docker images
+        run: |
+          docker build -f backend/Dockerfile.prod -t ecommerce-api-backend:prod backend
+          docker build --build-arg VITE_API_URL=https://api.example.com -f frontend/Dockerfile.prod -t ecommerce-api-frontend:prod frontend

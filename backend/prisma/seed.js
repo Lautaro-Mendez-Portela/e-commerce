@@ -118,13 +118,13 @@ const main = async () => {
   }
 
   console.log("Seed de desarrollo aplicado");
-  console.log(`ADMIN: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
-  console.log(`USER: ${USER_EMAIL} / ${USER_PASSWORD}`);
+  console.log(`ADMIN seed user: ${ADMIN_EMAIL}`);
+  console.log(`USER seed user: ${USER_EMAIL}`);
 };
 
 main()
   .catch((error) => {
-    console.error(error);
+    console.error(`Seed failed: ${error.message}`);
     process.exit(1);
   })
   .finally(async () => {

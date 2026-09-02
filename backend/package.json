@@ -8,6 +8,8 @@
   },
   "scripts": {
     "dev": "nodemon src/server.js",
+    "build": "npx prisma generate",
+    "start": "node src/server.js",
     "docker:start": "prisma migrate deploy && node src/server.js",
     "docker:dev": "prisma migrate deploy && nodemon --legacy-watch src/server.js",
     "docker:test:integration": "prisma migrate deploy && vitest run --coverage tests/unit tests/integration tests/services tests/webhook tests/admin",

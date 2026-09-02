@@ -81,6 +81,8 @@ ecommerce-api/
 
 Crear un archivo `.env` dentro de `backend/`.
 
+Ejemplo local de desarrollo:
+
 ```env
 DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/ecommerce_db"
 JWT_SECRET="replace-with-a-long-random-secret"
@@ -88,16 +90,23 @@ JWT_REFRESH_SECRET="replace-with-a-different-long-random-secret"
 CLIENT_URL="http://localhost:5173"
 API_URL="http://localhost:3000"
 JSON_BODY_LIMIT="1mb"
+API_DOCS_ENABLED="true"
 STRIPE_SECRET_KEY="sk_test_xxxxxxxxxxxxxxxxx"
 STRIPE_WEBHOOK_SECRET="whsec_xxxxxxxxxxxxxxxxx"
 PORT=3000
 ```
 
+Para produccion usar `backend/.env.production.example` como referencia y cargar los secretos desde el panel del proveedor.
+
 Crear tambien un archivo `.env` dentro de `frontend/`.
+
+Ejemplo local:
 
 ```env
 VITE_API_URL="http://localhost:3000"
 ```
+
+Para produccion usar `frontend/.env.production.example`.
 
 ## Instalacion
 
@@ -175,6 +184,19 @@ El webhook de Stripe `POST /payments/webhook` no se expone como operacion intera
 
 La ruta puede deshabilitarse con `API_DOCS_ENABLED=false` si mas adelante se decide protegerla o apagarla en produccion.
 
+## Deployment
+
+La preparacion para deploy esta documentada en [docs/deployment.md](docs/deployment.md).
+
+Resumen operativo:
+
+- Backend production usa `NODE_ENV=production`, `PORT` provisto por la plataforma, `DATABASE_URL` remoto, `CLIENT_URL`, `API_URL`, JWT secrets y Stripe secrets por variables.
+- Frontend production usa `VITE_API_URL` en build time para apuntar al backend publico.
+- Prisma debe ejecutar `npm run build` para generar cliente y `npx prisma migrate deploy` como paso controlado de release.
+- Stripe webhook publico debe configurarse luego en Stripe Dashboard como `https://BACKEND_DOMAIN/payments/webhook`.
+- Swagger puede quedar activo para portfolio con `API_DOCS_ENABLED=true` o apagarse con `API_DOCS_ENABLED=false`.
+- El hosting frontend debe redirigir rutas SPA desconocidas a `index.html`.
+
 ### Backend
 
 ```bash
@@ -210,8 +232,8 @@ http://localhost:5173
 El checkout redirige a:
 
 ```text
-http://localhost:5173/success
-http://localhost:5173/cancel
+${CLIENT_URL}/checkout/success?orderId=...&session_id=...
+${CLIENT_URL}/checkout/cancel?orderId=...
 ```
 
 Para marcar ordenes como pagadas, configurar el webhook de Stripe apuntando a:

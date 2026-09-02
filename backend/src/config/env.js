@@ -2,6 +2,9 @@ const dotenv = require("dotenv");
 
 dotenv.config();
 
+const nodeEnv = process.env.NODE_ENV || "development";
+const isProduction = nodeEnv === "production";
+
 const requiredVariables = [
   "DATABASE_URL",
   "JWT_SECRET",
@@ -11,34 +14,101 @@ const requiredVariables = [
   "STRIPE_WEBHOOK_SECRET",
 ];
 
-const missingVariables = requiredVariables.filter(
+const productionRequiredVariables = [
+  "PORT",
+  "API_URL",
+];
+
+const allRequiredVariables = isProduction
+  ? [...requiredVariables, ...productionRequiredVariables]
+  : requiredVariables;
+
+const missingProductionVariables = allRequiredVariables.filter(
   (key) => !process.env[key] || process.env[key].trim() === ""
 );
 
-if (missingVariables.length > 0) {
+if (missingProductionVariables.length > 0) {
   throw new Error(
-    `Missing required environment variables: ${missingVariables.join(", ")}`
+    `Missing required environment variables: ${missingProductionVariables.join(", ")}`
   );
 }
 
-const parseInteger = (value, fallback) => {
-  const parsed = Number.parseInt(value, 10);
+const trimTrailingSlash = (value) => value.trim().replace(/\/+$/, "");
 
-  return Number.isNaN(parsed) ? fallback : parsed;
+const localHosts = new Set([
+  "localhost",
+  "127.0.0.1",
+  "0.0.0.0",
+]);
+
+const parsePort = (value) => {
+  if (!value || value.trim() === "") {
+    if (isProduction) {
+      throw new Error("Missing required environment variables: PORT");
+    }
+
+    return 3000;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
+    throw new Error("PORT must be an integer between 1 and 65535");
+  }
+
+  return parsed;
 };
 
-const trimTrailingSlash = (value) => value.replace(/\/+$/, "");
+const parsePublicUrl = (key, value) => {
+  const normalized = trimTrailingSlash(value);
+  let parsed;
+
+  try {
+    parsed = new URL(normalized);
+  } catch {
+    throw new Error(`${key} must be a valid URL`);
+  }
+
+  if (isProduction) {
+    if (parsed.protocol !== "https:") {
+      throw new Error(`${key} must use https in production`);
+    }
+
+    if (localHosts.has(parsed.hostname)) {
+      throw new Error(`${key} must not point to localhost in production`);
+    }
+  }
+
+  return normalized;
+};
+
+const parseClientUrls = (value) => {
+  const urls = value
+    .split(",")
+    .map((url) => url.trim())
+    .filter(Boolean)
+    .map((url, index) => parsePublicUrl(`CLIENT_URL[${index}]`, url));
+
+  if (urls.length === 0) {
+    throw new Error("CLIENT_URL must include at least one URL");
+  }
+
+  return urls;
+};
+
+const clientUrls = parseClientUrls(process.env.CLIENT_URL);
 
 module.exports = {
-  nodeEnv: process.env.NODE_ENV || "development",
-  isProduction: process.env.NODE_ENV === "production",
-  port: parseInteger(process.env.PORT, 3000),
+  nodeEnv,
+  isProduction,
+  port: parsePort(process.env.PORT),
   databaseUrl: process.env.DATABASE_URL,
   jwtSecret: process.env.JWT_SECRET,
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET,
-  clientUrl: trimTrailingSlash(process.env.CLIENT_URL),
+  clientUrl: clientUrls[0],
+  clientUrls,
   apiUrl: process.env.API_URL
-    ? trimTrailingSlash(process.env.API_URL)
+    ? parsePublicUrl("API_URL", process.env.API_URL)
     : undefined,
   stripeSecretKey: process.env.STRIPE_SECRET_KEY,
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,

@@ -27,9 +27,11 @@ const app = express();
 
 app.use(helmet());
 
+const normalizeOrigin = (origin) => origin.replace(/\/+$/, "");
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || origin === env.clientUrl) {
+    if (!origin || env.clientUrls.includes(normalizeOrigin(origin))) {
       return callback(null, true);
     }
 
