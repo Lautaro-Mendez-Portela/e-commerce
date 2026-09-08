@@ -9,6 +9,7 @@ import BaseBadge from "../components/ui/BaseBadge.vue";
 import { useAuthStore } from "../stores/authStore";
 import { useCartStore } from "../stores/cartStore";
 import { useFavoritesStore } from "../stores/favoritesStore";
+import BackButton from "../components/ui/BackButton.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -78,7 +79,7 @@ const openCartFromHeader = () => {
   <div class="app">
     <header class="site-header">
       <div class="site-header__inner container">
-        <RouterLink class="brand-btn" :to="{ name: 'products' }">
+        <RouterLink class="brand-btn" :to="{ name: 'home' }">
           <span class="brand-mark">EC</span>
           <span class="brand-name">E-Commerce</span>
         </RouterLink>
@@ -209,6 +210,9 @@ const openCartFromHeader = () => {
     </header>
 
     <main class="site-main">
+      <div v-if="route.name !== 'home'" class="back-button-strip container">
+        <BackButton />
+      </div>
       <RouterView />
     </main>
 

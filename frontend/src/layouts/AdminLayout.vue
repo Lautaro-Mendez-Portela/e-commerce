@@ -4,6 +4,7 @@ import { storeToRefs } from "pinia";
 import { useRoute } from "vue-router";
 
 import AppIcon from "../components/ui/AppIcon.vue";
+import BackButton from "../components/ui/BackButton.vue";
 import { useAuthStore } from "../stores/authStore";
 
 const route = useRoute();
@@ -92,17 +93,21 @@ watch(
 
     <div class="admin-main">
       <header class="admin-topbar">
-        <button
-          type="button"
-          class="menu-toggle"
-          :aria-expanded="isSidebarOpen"
-          aria-label="Abrir navegacion admin"
-          @click="isSidebarOpen = true"
-        >
-          <AppIcon name="menu" />
-        </button>
+        <div class="admin-topbar__start">
+          <button
+            type="button"
+            class="menu-toggle"
+            :aria-expanded="isSidebarOpen"
+            aria-label="Abrir navegacion admin"
+            @click="isSidebarOpen = true"
+          >
+            <AppIcon name="menu" />
+          </button>
 
-        <div>
+          <BackButton :fallback-to="{ name: 'admin' }" />
+        </div>
+
+        <div class="admin-topbar__user">
           <span>Usuario admin</span>
           <strong>{{ adminName }}</strong>
         </div>

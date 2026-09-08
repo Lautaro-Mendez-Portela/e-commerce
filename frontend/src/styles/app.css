@@ -381,6 +381,15 @@ textarea.field-control {
   flex: 1;
 }
 
+.back-button {
+  width: fit-content;
+}
+
+.back-button-strip {
+  display: flex;
+  padding-top: var(--space-4);
+}
+
 .site-footer {
   margin-top: auto;
   border-top: 1px solid var(--color-border);
@@ -698,6 +707,18 @@ img.product-image {
   place-items: center;
   padding: var(--space-6);
   background: var(--color-background);
+}
+
+.auth-shell {
+  min-height: 100vh;
+  background: var(--color-background);
+}
+
+.auth-shell__back {
+  position: fixed;
+  top: var(--space-4);
+  left: var(--space-4);
+  z-index: 10;
 }
 
 .login-card {
@@ -2669,7 +2690,7 @@ body.has-open-drawer {
   min-height: 68px;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: var(--space-3);
   padding: 0 clamp(1rem, 3vw, 2rem);
   border-bottom: 1px solid var(--color-border);
@@ -2677,7 +2698,13 @@ body.has-open-drawer {
   backdrop-filter: blur(12px);
 }
 
-.admin-topbar > div {
+.admin-topbar__start {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.admin-topbar__user {
   display: grid;
   gap: var(--space-1);
   text-align: right;

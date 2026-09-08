@@ -57,6 +57,10 @@ defineProps({
       d="M5 12h14M13 6l6 6-6 6"
     />
     <path
+      v-else-if="name === 'arrow-left'"
+      d="M19 12H5m6 6-6-6 6-6"
+    />
+    <path
       v-else-if="name === 'lock'"
       d="M7 11V8a5 5 0 0 1 10 0v3M6 11h12v10H6V11Z"
     />
